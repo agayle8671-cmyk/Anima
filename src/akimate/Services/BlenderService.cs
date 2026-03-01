@@ -21,7 +21,7 @@ public sealed class BlenderService : IDisposable
     // ── Configuration ──────────────────────────────────────────────────
     private const string Host = "127.0.0.1";
     private const int Port = 9700;
-    private const int ConnectTimeoutMs = 30_000;
+    private const int ConnectTimeoutMs = 45_000;  // 45s for cold start
     private const int CommandTimeoutMs = 120_000;
 
     // ── State ──────────────────────────────────────────────────────────
@@ -76,6 +76,9 @@ public sealed class BlenderService : IDisposable
         // Delete any stale ready signal
         if (File.Exists(_readyFilePath))
             File.Delete(_readyFilePath);
+
+        // Kill any stale Blender daemon processes using our port
+        KillStaleBlenderDaemons();
 
         Log("Starting Blender daemon...");
         Log($"  Executable: {_blenderPath}");
@@ -309,6 +312,39 @@ public sealed class BlenderService : IDisposable
             }
         }
         catch { /* Expected during shutdown */ }
+    }
+
+    /// <summary>
+    /// Kills any stale Blender processes that might be holding port 9700.
+    /// This prevents "address already in use" errors on restart.
+    /// </summary>
+    private void KillStaleBlenderDaemons()
+    {
+        try
+        {
+            foreach (var proc in Process.GetProcessesByName("blender"))
+            {
+                // Skip our own managed process
+                if (_blenderProcess != null && proc.Id == _blenderProcess.Id)
+                    continue;
+
+                try
+                {
+                    // Only kill headless Blender instances (no main window)
+                    if (proc.MainWindowHandle == IntPtr.Zero)
+                    {
+                        Log($"Killing stale Blender process (PID: {proc.Id})");
+                        proc.Kill(entireProcessTree: true);
+                        proc.WaitForExit(3000);
+                    }
+                }
+                catch { /* Process may already be gone */ }
+            }
+
+            // Brief pause to let the OS release the port
+            System.Threading.Thread.Sleep(500);
+        }
+        catch { /* No processes to kill */ }
     }
 
     private void Log(string message)
