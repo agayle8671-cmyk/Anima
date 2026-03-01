@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="akimate.Pages.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:akimate.Pages">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="40,32,40,40">
+        <StackPanel Spacing="32" MaxWidth="900" HorizontalAlignment="Left">
+
+            <!-- Header -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="akimate" FontSize="40" FontWeight="Bold"
+                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                <TextBlock Text="AI-Assisted Anime Production Studio" 
+                           FontSize="16" Opacity="0.7"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+
+            <!-- Quick Actions -->
+            <StackPanel Spacing="12">
+                <TextBlock Text="Get Started" FontSize="20" FontWeight="SemiBold"/>
+                <Grid ColumnSpacing="16" RowSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button x:Name="BtnNewProject" Grid.Column="0" 
+                            HorizontalAlignment="Stretch" Height="120"
+                            Click="BtnNewProject_Click" Padding="20"
+                            CornerRadius="8">
+                        <StackPanel Spacing="8" HorizontalAlignment="Left">
+                            <FontIcon Glyph="&#xE710;" FontSize="28"/>
+                            <TextBlock Text="New Project" FontSize="16" FontWeight="SemiBold"/>
+                            <TextBlock Text="Start a new anime production" FontSize="12" 
+                                       Opacity="0.6" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="BtnOpenProject" Grid.Column="1"
+                            HorizontalAlignment="Stretch" Height="120"
+                            Click="BtnOpenProject_Click" Padding="20"
+                            CornerRadius="8">
+                        <StackPanel Spacing="8" HorizontalAlignment="Left">
+                            <FontIcon Glyph="&#xE8E5;" FontSize="28"/>
+                            <TextBlock Text="Open Project" FontSize="16" FontWeight="SemiBold"/>
+                            <TextBlock Text="Resume an existing .aanime project" FontSize="12" 
+                                       Opacity="0.6" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button x:Name="BtnSaveProject" Grid.Column="2"
+                            HorizontalAlignment="Stretch" Height="120"
+                            Click="BtnSaveProject_Click" Padding="20"
+                            CornerRadius="8" IsEnabled="False">
+                        <StackPanel Spacing="8" HorizontalAlignment="Left">
+                            <FontIcon Glyph="&#xE74E;" FontSize="28"/>
+                            <TextBlock Text="Save Project" FontSize="16" FontWeight="SemiBold"/>
+                            <TextBlock Text="Save current project state" FontSize="12" 
+                                       Opacity="0.6" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </StackPanel>
+
+            <!-- Pipeline Overview -->
+            <StackPanel Spacing="16">
+                <TextBlock Text="Production Pipeline" FontSize="20" FontWeight="SemiBold"/>
+
+                <!-- Phase 1 -->
+                <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      CornerRadius="8" Padding="20" BorderThickness="1"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="40" Height="40" CornerRadius="20"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}">
+                        <TextBlock Text="1" FontSize="18" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="White"/>
+                    </Border>
+                    <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="Conceptualization" FontSize="15" FontWeight="SemiBold"/>
+                        <TextBlock Text="Script generation, character motivations, episode outline" 
+                                   FontSize="12" Opacity="0.6"/>
+                    </StackPanel>
+                    <TextBlock x:Name="Phase1Status" Grid.Column="3" Text="Not started" 
+                               FontSize="12" Opacity="0.5" VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- Phase 2 -->
+                <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      CornerRadius="8" Padding="20" BorderThickness="1"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="40" Height="40" CornerRadius="20"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}">
+                        <TextBlock Text="2" FontSize="18" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="White"/>
+                    </Border>
+                    <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="Pre-Production" FontSize="15" FontWeight="SemiBold"/>
+                        <TextBlock Text="Storyboarding, character design, 3D layout" 
+                                   FontSize="12" Opacity="0.6"/>
+                    </StackPanel>
+                    <TextBlock x:Name="Phase2Status" Grid.Column="3" Text="Not started" 
+                               FontSize="12" Opacity="0.5" VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- Phase 3 -->
+                <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      CornerRadius="8" Padding="20" BorderThickness="1"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="40" Height="40" CornerRadius="20"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}">
+                        <TextBlock Text="3" FontSize="18" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="White"/>
+                    </Border>
+                    <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="Animatic &amp; Genga" FontSize="15" FontWeight="SemiBold"/>
+                        <TextBlock Text="Pacing, keyframe generation, voice synthesis, animation" 
+                                   FontSize="12" Opacity="0.6"/>
+                    </StackPanel>
+                    <TextBlock x:Name="Phase3Status" Grid.Column="3" Text="Not started" 
+                               FontSize="12" Opacity="0.5" VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- Phase 4 -->
+                <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      CornerRadius="8" Padding="20" BorderThickness="1"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="40" Height="40" CornerRadius="20"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}">
+                        <TextBlock Text="4" FontSize="18" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="White"/>
+                    </Border>
+                    <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
+                        <TextBlock Text="Satsuei (Compositing)" FontSize="15" FontWeight="SemiBold"/>
+                        <TextBlock Text="Visual effects, render passes, color grading, export" 
+                                   FontSize="12" Opacity="0.6"/>
+                    </StackPanel>
+                    <TextBlock x:Name="Phase4Status" Grid.Column="3" Text="Not started" 
+                               FontSize="12" Opacity="0.5" VerticalAlignment="Center"/>
+                </Grid>
+            </StackPanel>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</Page>

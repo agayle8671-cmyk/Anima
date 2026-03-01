@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="akimate.Pages.PreProductionPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="40,32,40,40">
+        <StackPanel Spacing="24" MaxWidth="900" HorizontalAlignment="Left">
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="Phase 2: Pre-Production" FontSize="32" FontWeight="Bold"/>
+                <TextBlock Text="Storyboarding, character turnaround sheets, and 3D environmental layout. The Storyboard and Layout Agents will generate visual assets from your locked script."
+                           FontSize="14" Opacity="0.7" TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <!-- Gate Check -->
+            <InfoBar x:Name="GateInfo" IsOpen="True" IsClosable="False"
+                     Severity="Warning"
+                     Title="Phase Locked"
+                     Message="Complete Phase 1 (Conceptualization) to unlock this phase."/>
+
+            <!-- Storyboard Section -->
+            <StackPanel x:Name="StoryboardSection" Spacing="12" Visibility="Collapsed">
+                <TextBlock Text="Storyboard Generation" FontSize="18" FontWeight="SemiBold"/>
+                <TextBlock Text="The Storyboard Agent will create sequential panels from your script, maintaining character consistency and cinematic framing."
+                           FontSize="13" Opacity="0.6" TextWrapping="Wrap"/>
+                <Button x:Name="BtnGenerateStoryboard" Content="Generate Storyboards"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Click="BtnGenerateStoryboard_Click"/>
+                
+                <!-- Storyboard Gallery placeholder -->
+                <Grid x:Name="StoryboardGallery" 
+                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      CornerRadius="8" Padding="40" MinHeight="200"
+                      BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <TextBlock Text="Storyboard panels will appear here" 
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Opacity="0.4" FontSize="14"/>
+                </Grid>
+            </StackPanel>
+
+            <!-- Character Design Section -->
+            <StackPanel x:Name="CharacterSection" Spacing="12" Visibility="Collapsed">
+                <TextBlock Text="Character Turnaround Sheets" FontSize="18" FontWeight="SemiBold"/>
+                <TextBlock Text="Generate multi-angle reference sheets for each character to ensure visual consistency across all frames."
+                           FontSize="13" Opacity="0.6" TextWrapping="Wrap"/>
+                <Button x:Name="BtnGenerateCharacters" Content="Generate Character Sheets"
+                        Click="BtnGenerateCharacters_Click"/>
+
+                <Grid x:Name="CharacterGallery"
+                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      CornerRadius="8" Padding="40" MinHeight="200"
+                      BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <TextBlock Text="Character sheets will appear here"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Opacity="0.4" FontSize="14"/>
+                </Grid>
+            </StackPanel>
+
+            <!-- Proceed -->
+            <Button x:Name="BtnProceedToAnimatic" Content="Lock Pre-Production &amp; Proceed →"
+                    Click="BtnProceedToAnimatic_Click" Visibility="Collapsed"/>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</Page>

@@ -4,6 +4,8 @@ namespace akimate;
 
 public partial class App : Application
 {
+    public static Window? MainWindow { get; private set; }
+
     public App()
     {
         this.InitializeComponent();
@@ -11,9 +13,7 @@ public partial class App : Application
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
-        m_window = new MainWindow();
-        m_window.Activate();
+        MainWindow = new MainWindow();
+        MainWindow.Activate();
     }
-
-    private Window? m_window;
 }

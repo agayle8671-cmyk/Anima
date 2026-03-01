@@ -6,14 +6,95 @@
     xmlns:local="using:akimate"
     Title="akimate — AI Anime Production Studio">
 
-    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <TextBlock
-            Text="akimate"
-            FontSize="48"
-            FontWeight="Bold"
-            HorizontalAlignment="Center"
-            VerticalAlignment="Center"
-            Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Custom Title Bar -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="48" Background="Transparent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <FontIcon Grid.Column="1" Glyph="&#xE946;" FontSize="16"
+                      VerticalAlignment="Center"
+                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+            <TextBlock Grid.Column="3" Text="akimate" FontSize="13" FontWeight="SemiBold"
+                       VerticalAlignment="Center"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+
+            <!-- Project name display -->
+            <TextBlock x:Name="ProjectNameText" Grid.Column="4" 
+                       Text="" FontSize="12" FontStyle="Italic"
+                       VerticalAlignment="Center" HorizontalAlignment="Left"
+                       Margin="12,0,0,0" Opacity="0.6"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Grid>
+
+        <!-- Main NavigationView -->
+        <NavigationView
+            x:Name="NavView"
+            Grid.Row="1"
+            IsBackButtonVisible="Collapsed"
+            IsSettingsVisible="True"
+            PaneDisplayMode="Left"
+            IsPaneToggleButtonVisible="True"
+            OpenPaneLength="240"
+            SelectionChanged="NavView_SelectionChanged"
+            Loaded="NavView_Loaded">
+
+            <NavigationView.MenuItems>
+                <!-- Project -->
+                <NavigationViewItemHeader Content="PROJECT"/>
+                <NavigationViewItem x:Name="NavHome" Content="Home" Tag="Home">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE80F;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <!-- Pipeline Phases (Wizard Steps) -->
+                <NavigationViewItemHeader Content="PRODUCTION PIPELINE"/>
+                <NavigationViewItem x:Name="NavConcept" Content="1. Conceptualization" Tag="Concept">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE70B;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="NavPreProd" Content="2. Pre-Production" Tag="PreProduction">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8F1;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="NavAnimatic" Content="3. Animatic &amp; Genga" Tag="Animatic">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE714;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem x:Name="NavCompositor" Content="4. Satsuei" Tag="Compositor">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE771;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+
+            <NavigationView.FooterMenuItems>
+                <NavigationViewItem Content="Hardware" Tag="Hardware">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7F7;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.FooterMenuItems>
+
+            <!-- Page Frame -->
+            <Frame x:Name="ContentFrame" Padding="0"/>
+
+        </NavigationView>
     </Grid>
 
 </Window>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="akimate.Pages.ConceptPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="40,32,40,40">
+        <StackPanel Spacing="24" MaxWidth="900" HorizontalAlignment="Left">
+
+            <!-- Header -->
+            <StackPanel Spacing="4">
+                <TextBlock Text="Phase 1: Conceptualization" FontSize="32" FontWeight="Bold"/>
+                <TextBlock Text="Define your story, characters, and episode structure. The Director Agent will transform your ideas into a professional script."
+                           FontSize="14" Opacity="0.7" TextWrapping="Wrap"/>
+            </StackPanel>
+
+            <!-- Concept Input -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="Your Concept" FontSize="18" FontWeight="SemiBold"/>
+                <TextBox x:Name="ConceptInput" 
+                         PlaceholderText="Describe your anime concept here... Include genre, setting, main characters, central conflict, and the mood you want to achieve."
+                         AcceptsReturn="True" TextWrapping="Wrap" Height="160"
+                         TextChanged="ConceptInput_TextChanged"/>
+            </StackPanel>
+
+            <!-- Genre & Tone -->
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Spacing="8">
+                    <TextBlock Text="Genre" FontSize="15" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="GenreSelector" HorizontalAlignment="Stretch"
+                              PlaceholderText="Select genre"
+                              SelectionChanged="GenreSelector_SelectionChanged">
+                        <ComboBoxItem Content="Action / Shōnen"/>
+                        <ComboBoxItem Content="Drama / Seinen"/>
+                        <ComboBoxItem Content="Fantasy / Isekai"/>
+                        <ComboBoxItem Content="Sci-Fi / Mecha"/>
+                        <ComboBoxItem Content="Slice of Life"/>
+                        <ComboBoxItem Content="Horror / Thriller"/>
+                        <ComboBoxItem Content="Romance / Shōjo"/>
+                        <ComboBoxItem Content="Comedy"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="8">
+                    <TextBlock Text="Tone" FontSize="15" FontWeight="SemiBold"/>
+                    <ComboBox x:Name="ToneSelector" HorizontalAlignment="Stretch"
+                              PlaceholderText="Select tone"
+                              SelectionChanged="ToneSelector_SelectionChanged">
+                        <ComboBoxItem Content="Dark &amp; Gritty"/>
+                        <ComboBoxItem Content="Lighthearted"/>
+                        <ComboBoxItem Content="Epic &amp; Grand"/>
+                        <ComboBoxItem Content="Psychological"/>
+                        <ComboBoxItem Content="Emotional / Melancholic"/>
+                        <ComboBoxItem Content="Comedic"/>
+                        <ComboBoxItem Content="Surreal / Experimental"/>
+                    </ComboBox>
+                </StackPanel>
+            </Grid>
+
+            <!-- Episode Config -->
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Spacing="8">
+                    <TextBlock Text="Target Runtime (minutes)" FontSize="15" FontWeight="SemiBold"/>
+                    <NumberBox x:Name="RuntimeBox" Value="10" Minimum="1" Maximum="30"
+                               SpinButtonPlacementMode="Inline"
+                               ValueChanged="RuntimeBox_ValueChanged"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="8">
+                    <TextBlock Text="Episode Count" FontSize="15" FontWeight="SemiBold"/>
+                    <NumberBox x:Name="EpisodeCountBox" Value="1" Minimum="1" Maximum="26"
+                               SpinButtonPlacementMode="Inline"
+                               ValueChanged="EpisodeCountBox_ValueChanged"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Generate Script Button -->
+            <Button x:Name="BtnGenerateScript" Content="Generate Script with Director Agent"
+                    HorizontalAlignment="Stretch" Height="48"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Click="BtnGenerateScript_Click" IsEnabled="False"/>
+
+            <!-- Script Output -->
+            <StackPanel x:Name="ScriptPanel" Spacing="8" Visibility="Collapsed">
+                <TextBlock Text="Generated Script" FontSize="18" FontWeight="SemiBold"/>
+                <TextBox x:Name="ScriptOutput" AcceptsReturn="True" TextWrapping="Wrap"
+                         Height="300" IsReadOnly="False"
+                         PlaceholderText="The AI-generated script will appear here. You can edit it freely."
+                         TextChanged="ScriptOutput_TextChanged"/>
+            </StackPanel>
+
+            <!-- Lock Script / Proceed -->
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <InfoBar x:Name="PhaseInfoBar" Grid.Column="0" IsOpen="False" IsClosable="False"
+                         Severity="Informational"
+                         Title="Script Locked"
+                         Message="Your script is finalized. Proceed to Pre-Production."/>
+                <Button x:Name="BtnLockScript" Grid.Column="1" Content="Lock Script &amp; Proceed →"
+                        VerticalAlignment="Top"
+                        Click="BtnLockScript_Click" IsEnabled="False"/>
+            </Grid>
+
+        </StackPanel>
+    </ScrollViewer>
+
+</Page>
