@@ -4,6 +4,7 @@ using akimate.Services;
 using akimate.Agents.Plugins;
 using System;
 using System.IO;
+using System.Linq;
 
 namespace akimate.Pages;
 
@@ -315,44 +316,76 @@ print(f'Engine: {scene.render.engine}')
                 ExportStatus.Text += "\n⚠ Warning: Scene may not have built correctly.";
             }
 
-            // Step 4: Render
-            ExportStatus.Text += "\n\n🎬 Step 2/3: Rendering frame...";
+            // Step 4: Render full MP4 video animation
+            ExportStatus.Text += "\n\n🎬 Step 2/3: Rendering MP4 video...\n   (This takes several minutes — Cycles is working)";
 
             var outputDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 ".akimate", "exports");
             Directory.CreateDirectory(outputDir);
             var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            var outputPath = Path.Combine(outputDir, $"{project.Name}_{timestamp}.png").Replace("\\", "/");
+            var outputPath = Path.Combine(outputDir, $"{project.Name}_{timestamp}.mp4").Replace("\\", "/");
 
-            var renderScript = $@"import bpy
-scene = bpy.context.scene
-scene.frame_current = 1
-scene.render.filepath = r'{outputPath}'
-scene.render.image_settings.file_format = 'PNG'
-bpy.ops.render.render(write_still=True)
-print(f'RENDER SAVED: {{scene.render.filepath}}')
-";
-            var renderResult = await App.Blender.ExecutePythonAsync(renderScript);
+            // Use string concatenation to avoid C# interpolation conflicts with Python quotes
+            var renderScript =
+                "import bpy\n" +
+                "scene = bpy.context.scene\n" +
+                "\n" +
+                "# Set animation range: 5 seconds at 24fps = 120 frames\n" +
+                "scene.frame_start = 1\n" +
+                "scene.frame_end = 120\n" +
+                "scene.render.fps = 24\n" +
+                "\n" +
+                "# Lower samples for faster render (still looks good)\n" +
+                "scene.cycles.samples = 16\n" +
+                "\n" +
+                "# Set output to MP4 via Blender's built-in FFmpeg\n" +
+                $"scene.render.filepath = r'{outputPath}'\n" +
+                "scene.render.image_settings.file_format = 'FFMPEG'\n" +
+                "scene.render.ffmpeg.format = 'MPEG4'\n" +
+                "scene.render.ffmpeg.codec = 'H264'\n" +
+                "scene.render.ffmpeg.constant_rate_factor = 'MEDIUM'\n" +
+                "scene.render.ffmpeg.ffmpeg_preset = 'GOOD'\n" +
+                "\n" +
+                "print(f'Starting MP4 render: {scene.frame_start}-{scene.frame_end} frames -> " + outputPath + "')\n" +
+                "\n" +
+                "# Render full animation - works in headless/background mode\n" +
+                "bpy.ops.render.render(animation=True, write_still=False)\n" +
+                "print('MP4 RENDER COMPLETE')\n";
+
+            // Use a long timeout — 120 frames at ~5s each = up to 10 minutes
+            using var longCts = new System.Threading.CancellationTokenSource(TimeSpan.FromMinutes(20));
+            var renderResult = await App.Blender.ExecutePythonAsync(renderScript, longCts.Token);
             var renderStatus = renderResult.GetProperty("status").GetString();
             if (renderStatus == "error")
             {
                 var err = renderResult.GetProperty("error").GetString();
-                ExportStatus.Text += $" ❌\nRender error: {err}";
+                ExportStatus.Text += $"\n\n❌ Render error:\n{err}";
                 return;
             }
-            ExportStatus.Text += " ✅";
+            ExportStatus.Text = ExportStatus.Text.Replace("(This takes several minutes — Cycles is working)", "✅");
 
-            // Step 5: Verify render file exists
+            // Step 5: Verify MP4 exists
             ExportStatus.Text += "\n\n✅ Step 3/3: Verifying output...";
             if (File.Exists(outputPath))
             {
                 var fileSize = new FileInfo(outputPath).Length;
-                ExportStatus.Text += $" ✅\n\n🎉 Export complete!\nFile: {outputPath}\nSize: {fileSize:N0} bytes";
+                ExportStatus.Text += $" ✅\n\n🎉 Export complete!\nVideo: {outputPath}\nSize: {fileSize:N0} bytes";
             }
             else
             {
-                ExportStatus.Text += $"\n\n⚠ Render command succeeded but file not found at:\n{outputPath}";
+                // Blender may append frame numbers — check for any mp4 in dir
+                var mp4Files = Directory.GetFiles(outputDir, "*.mp4");
+                if (mp4Files.Length > 0)
+                {
+                    var latest = mp4Files.OrderByDescending(f => File.GetLastWriteTime(f)).First();
+                    var fileSize = new FileInfo(latest).Length;
+                    ExportStatus.Text += $" ✅\n\n🎉 Export complete!\nVideo: {latest}\nSize: {fileSize:N0} bytes";
+                }
+                else
+                {
+                    ExportStatus.Text += $"\n\n⚠ Render finished but MP4 not found at:\n{outputPath}";
+                }
             }
 
             // Mark phase complete

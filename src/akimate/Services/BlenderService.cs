@@ -208,30 +208,45 @@ public sealed class BlenderService : IDisposable
         await _stream.WriteAsync(payload, ct);
         await _stream.FlushAsync(ct);
 
-        // Read response
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(CommandTimeoutMs);
-
-        var responseLenBytes = await ReadExactAsync(_stream, 4, timeoutCts.Token);
-        if (BitConverter.IsLittleEndian)
-            Array.Reverse(responseLenBytes);
-        var responseLen = (int)BitConverter.ToUInt32(responseLenBytes);
-
-        var responsePayload = await ReadExactAsync(_stream, responseLen, timeoutCts.Token);
-        var responseJson = Encoding.UTF8.GetString(responsePayload);
-
-        var doc = JsonDocument.Parse(responseJson);
-        var root = doc.RootElement;
-
-        // Check for errors
-        if (root.TryGetProperty("status", out var status) && status.GetString() == "error")
+        // Read response — use caller's token if provided, otherwise apply default 2-min timeout
+        CancellationToken readToken;
+        CancellationTokenSource? ownedCts = null;
+        if (ct == CancellationToken.None)
         {
-            var error = root.TryGetProperty("error", out var errProp) ? errProp.GetString() : "Unknown error";
-            Log($"Command '{command}' failed: {error}");
+            ownedCts = new CancellationTokenSource(CommandTimeoutMs);
+            readToken = ownedCts.Token;
+        }
+        else
+        {
+            readToken = ct; // Caller controls the timeout (e.g. 20 min for animation render)
         }
 
-        return root;
-    }
+        try
+        {
+            var responseLenBytes = await ReadExactAsync(_stream, 4, readToken);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(responseLenBytes);
+            var responseLen = (int)BitConverter.ToUInt32(responseLenBytes);
+
+            var responsePayload = await ReadExactAsync(_stream, responseLen, readToken);
+            var responseJson = Encoding.UTF8.GetString(responsePayload);
+
+            var doc = JsonDocument.Parse(responseJson);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("status", out var status) && status.GetString() == "error")
+            {
+                var error = root.TryGetProperty("error", out var errProp) ? errProp.GetString() : "Unknown error";
+                Log($"Command '{command}' failed: {error}");
+            }
+
+            return root;
+        }
+        finally
+        {
+            ownedCts?.Dispose();
+        }
+    } // end SendCommandAsync
 
     // ── Convenience Methods ────────────────────────────────────────────
 
