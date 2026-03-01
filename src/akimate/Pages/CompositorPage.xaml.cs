@@ -88,141 +88,167 @@ public sealed partial class CompositorPage : Page
     /// </summary>
     private string GetFullSceneBuildScript()
     {
+        // NOTE: Uses bpy.data + bmesh API exclusively — NOT bpy.ops.
+        // bpy.ops requires an active viewport context which doesn't exist in
+        // Blender --background mode, so all ops calls silently do nothing.
         return @"import bpy
+import bmesh
 import math
+from mathutils import Vector, Euler
 
-# ========================================
-# STEP 1: Clear the entire default scene
-# ========================================
-bpy.ops.object.select_all(action='SELECT')
-bpy.ops.object.delete()
-
-# Also clear orphan data
-for block in bpy.data.meshes:
-    if block.users == 0:
-        bpy.data.meshes.remove(block)
-for block in bpy.data.materials:
-    if block.users == 0:
-        bpy.data.materials.remove(block)
-
-# ========================================
-# STEP 2: Build the scene
-# ========================================
-
-# --- Ground plane ---
-bpy.ops.mesh.primitive_plane_add(size=50, location=(0, 0, 0))
-ground = bpy.context.active_object
-ground.name = 'Ground'
-mat_ground = bpy.data.materials.new('Ground_Mat')
-mat_ground.diffuse_color = (0.15, 0.15, 0.18, 1)
-ground.data.materials.append(mat_ground)
-
-# --- Buildings (background) ---
-buildings = [(-8, 12, 15), (-3, 14, 20), (3, 13, 12), (8, 15, 18), (13, 14, 10)]
-for i, (x, y, h) in enumerate(buildings):
-    bpy.ops.mesh.primitive_cube_add(size=1, location=(x, y, h/2))
-    b = bpy.context.active_object
-    b.name = f'Building_{i}'
-    b.scale = (2.5, 2.5, h/2)
-    mat_b = bpy.data.materials.new(f'Building_Mat_{i}')
-    mat_b.diffuse_color = (0.08 + i*0.02, 0.08 + i*0.01, 0.12 + i*0.02, 1)
-    b.data.materials.append(mat_b)
-
-# --- Character 1: Akira (protagonist) ---
-bpy.ops.mesh.primitive_cylinder_add(radius=0.3, depth=1.7, location=(-1.5, 2, 0.85))
-char1 = bpy.context.active_object
-char1.name = 'Character_Akira'
-mat_char1 = bpy.data.materials.new('Char1_Mat')
-mat_char1.diffuse_color = (0.6, 0.2, 0.2, 1)
-char1.data.materials.append(mat_char1)
-
-# Akira's head
-bpy.ops.mesh.primitive_uv_sphere_add(radius=0.25, location=(-1.5, 2, 1.95))
-head1 = bpy.context.active_object
-head1.name = 'Akira_Head'
-head1.data.materials.append(mat_char1)
-
-# --- Character 2: Kuro (antagonist) ---
-bpy.ops.mesh.primitive_cylinder_add(radius=0.35, depth=1.9, location=(1.5, 3, 0.95))
-char2 = bpy.context.active_object
-char2.name = 'Character_Kuro'
-mat_char2 = bpy.data.materials.new('Char2_Mat')
-mat_char2.diffuse_color = (0.1, 0.1, 0.15, 1)
-char2.data.materials.append(mat_char2)
-
-# Kuro's head
-bpy.ops.mesh.primitive_uv_sphere_add(radius=0.27, location=(1.5, 3, 2.15))
-head2 = bpy.context.active_object
-head2.name = 'Kuro_Head'
-head2.data.materials.append(mat_char2)
-
-# --- Key light (warm sunset) ---
-bpy.ops.object.light_add(type='SUN', location=(5, -5, 10))
-key_light = bpy.context.active_object
-key_light.name = 'Key_Light'
-key_light.data.energy = 3
-key_light.data.color = (1.0, 0.85, 0.6)
-key_light.rotation_euler = (math.radians(45), math.radians(15), math.radians(-30))
-
-# --- Fill light (cool blue) ---
-bpy.ops.object.light_add(type='AREA', location=(-6, -3, 5))
-fill = bpy.context.active_object
-fill.name = 'Fill_Light'
-fill.data.energy = 50
-fill.data.color = (0.5, 0.6, 1.0)
-fill.data.size = 5
-
-# --- Rim light ---
-bpy.ops.object.light_add(type='SPOT', location=(0, 8, 6))
-rim = bpy.context.active_object
-rim.name = 'Rim_Light'
-rim.data.energy = 200
-rim.data.color = (0.9, 0.7, 1.0)
-rim.rotation_euler = (math.radians(-60), 0, 0)
-
-# --- Camera ---
-bpy.ops.object.camera_add(location=(0, -6, 2.5))
-cam = bpy.context.active_object
-cam.name = 'MainCamera'
-cam.rotation_euler = (math.radians(80), 0, 0)
-cam.data.lens = 50
-bpy.context.scene.camera = cam
-
-# ========================================
-# STEP 3: Render settings
-# ========================================
 scene = bpy.context.scene
+col = scene.collection
+
+# ============================================================
+# STEP 1: Remove ALL existing objects (no bpy.ops needed)
+# ============================================================
+for obj in list(bpy.data.objects):
+    bpy.data.objects.remove(obj, do_unlink=True)
+for mesh in list(bpy.data.meshes):
+    bpy.data.meshes.remove(mesh)
+for cam in list(bpy.data.cameras):
+    bpy.data.cameras.remove(cam)
+for light in list(bpy.data.lights):
+    bpy.data.lights.remove(light)
+for mat in list(bpy.data.materials):
+    bpy.data.materials.remove(mat)
+
+def make_mat(name, color):
+    mat = bpy.data.materials.new(name)
+    mat.diffuse_color = (*color, 1.0)
+    return mat
+
+def add_box(name, location, scale, color):
+    mesh = bpy.data.meshes.new(name + '_mesh')
+    obj = bpy.data.objects.new(name, mesh)
+    col.objects.link(obj)
+    obj.location = Vector(location)
+    obj.scale = Vector(scale)
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    bm.to_mesh(mesh)
+    bm.free()
+    mat = make_mat(name + '_mat', color)
+    mesh.materials.append(mat)
+    return obj
+
+def add_cylinder(name, location, radius, depth, color):
+    mesh = bpy.data.meshes.new(name + '_mesh')
+    obj = bpy.data.objects.new(name, mesh)
+    col.objects.link(obj)
+    obj.location = Vector(location)
+    bm = bmesh.new()
+    bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False,
+                          segments=16, radius1=radius, radius2=radius, depth=depth)
+    bm.to_mesh(mesh)
+    bm.free()
+    mat = make_mat(name + '_mat', color)
+    mesh.materials.append(mat)
+    return obj
+
+def add_sphere(name, location, radius, color):
+    mesh = bpy.data.meshes.new(name + '_mesh')
+    obj = bpy.data.objects.new(name, mesh)
+    col.objects.link(obj)
+    obj.location = Vector(location)
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=radius)
+    bm.to_mesh(mesh)
+    bm.free()
+    mat = make_mat(name + '_mat', color)
+    mesh.materials.append(mat)
+    return obj
+
+def add_plane(name, location, size, color):
+    mesh = bpy.data.meshes.new(name + '_mesh')
+    obj = bpy.data.objects.new(name, mesh)
+    col.objects.link(obj)
+    obj.location = Vector(location)
+    bm = bmesh.new()
+    half = size / 2.0
+    verts = [bm.verts.new(v) for v in [(-half,-half,0),(half,-half,0),(half,half,0),(-half,half,0)]]
+    bm.faces.new(verts)
+    bm.to_mesh(mesh)
+    bm.free()
+    mat = make_mat(name + '_mat', color)
+    mesh.materials.append(mat)
+    return obj
+
+def add_light(name, light_type, location, energy, color):
+    light_data = bpy.data.lights.new(name=name, type=light_type)
+    light_data.energy = energy
+    light_data.color = color
+    obj = bpy.data.objects.new(name, light_data)
+    col.objects.link(obj)
+    obj.location = Vector(location)
+    return obj, light_data
+
+# ============================================================
+# STEP 2: Build the scene
+# ============================================================
+
+# Ground
+add_plane('Ground', (0, 0, 0), 50, (0.15, 0.15, 0.18))
+
+# Buildings
+buildings = [(-8,12,15), (-3,14,20), (3,13,12), (8,15,18), (13,14,10)]
+for i, (x, y, h) in enumerate(buildings):
+    add_box(f'Building_{i}', (x, y, h/2), (5, 5, h), (0.08+i*0.02, 0.08+i*0.01, 0.12+i*0.02))
+
+# Characters
+char1 = add_cylinder('Akira_Body', (-1.5, 2, 0.85), 0.3, 1.7, (0.6, 0.2, 0.2))
+add_sphere('Akira_Head', (-1.5, 2, 1.95), 0.25, (0.6, 0.2, 0.2))
+char2 = add_cylinder('Kuro_Body', (1.5, 3, 0.95), 0.35, 1.9, (0.1, 0.1, 0.15))
+add_sphere('Kuro_Head', (1.5, 3, 2.15), 0.27, (0.1, 0.1, 0.15))
+
+# Lights
+key_obj, key_light = add_light('Key_Light', 'SUN', (5, -5, 10), 3.0, (1.0, 0.85, 0.6))
+key_obj.rotation_euler = Euler((math.radians(45), math.radians(15), math.radians(-30)))
+
+fill_obj, fill_light = add_light('Fill_Light', 'AREA', (-6, -3, 5), 200.0, (0.5, 0.6, 1.0))
+if hasattr(fill_light, 'size'):
+    fill_light.size = 5.0
+
+rim_obj, rim_light = add_light('Rim_Light', 'SPOT', (0, 8, 6), 500.0, (0.9, 0.7, 1.0))
+rim_obj.rotation_euler = Euler((math.radians(-60), 0, 0))
+
+# Camera
+cam_data = bpy.data.cameras.new('MainCamera')
+cam_data.lens = 50
+cam_obj = bpy.data.objects.new('MainCamera', cam_data)
+col.objects.link(cam_obj)
+cam_obj.location = Vector((0.0, -6.0, 2.5))
+cam_obj.rotation_euler = Euler((math.radians(80), 0.0, 0.0))
+scene.camera = cam_obj
+
+# ============================================================
+# STEP 3: Render settings
+# ============================================================
 scene.render.resolution_x = 1920
 scene.render.resolution_y = 1080
 scene.render.resolution_percentage = 100
 scene.render.fps = 24
+scene.render.image_settings.file_format = 'PNG'
 
-# Set render engine (compatible across Blender versions)
-for eng in ['BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE', 'EEVEE']:
+for eng in ['BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE', 'EEVEE', 'CYCLES']:
     try:
         scene.render.engine = eng
         break
     except:
         continue
 
-scene.render.image_settings.file_format = 'PNG'
-
-# Color management
 scene.view_settings.view_transform = 'Standard'
-try:
-    scene.view_settings.look = 'None'
-except:
-    pass
 
-# EEVEE samples
 try:
     if hasattr(scene, 'eevee'):
-        scene.eevee.taa_render_samples = 64
+        scene.eevee.taa_render_samples = 32
 except:
     pass
 
-print(f'SCENE BUILT: {len(bpy.data.objects)} objects, engine={scene.render.engine}')
-print(f'Objects: {[o.name for o in bpy.data.objects]}')
+names = [o.name for o in bpy.data.objects]
+print(f'SCENE BUILT OK: {len(names)} objects -> {names}')
+print(f'Camera: {scene.camera.name if scene.camera else None}')
+print(f'Engine: {scene.render.engine}')
 ";
     }
 
