@@ -115,7 +115,14 @@ for mat in list(bpy.data.materials):
 
 def make_mat(name, color):
     mat = bpy.data.materials.new(name)
-    mat.diffuse_color = (*color, 1.0)
+    mat.use_nodes = True
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    bsdf.inputs['Base Color'].default_value = (*color, 1.0)
+    bsdf.inputs['Roughness'].default_value = 0.7
+    out = nodes.new('ShaderNodeOutputMaterial')
+    mat.node_tree.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
     return mat
 
 def add_box(name, location, scale, color):
@@ -222,7 +229,7 @@ cam_obj.rotation_euler = Euler((math.radians(80), 0.0, 0.0))
 scene.camera = cam_obj
 
 # ============================================================
-# STEP 3: Render settings
+# STEP 3: Render settings — use CYCLES (works headless, no GPU needed)
 # ============================================================
 scene.render.resolution_x = 1920
 scene.render.resolution_y = 1080
@@ -230,20 +237,16 @@ scene.render.resolution_percentage = 100
 scene.render.fps = 24
 scene.render.image_settings.file_format = 'PNG'
 
-for eng in ['BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE', 'EEVEE', 'CYCLES']:
-    try:
-        scene.render.engine = eng
-        break
-    except:
-        continue
-
-scene.view_settings.view_transform = 'Standard'
-
+# CYCLES works in headless/background mode. EEVEE requires a GPU display and fails silently.
+scene.render.engine = 'CYCLES'
 try:
-    if hasattr(scene, 'eevee'):
-        scene.eevee.taa_render_samples = 32
-except:
-    pass
+    scene.cycles.device = 'CPU'
+    scene.cycles.samples = 64
+    scene.cycles.preview_samples = 32
+except Exception as e:
+    print(f'Cycles config warning: {e}')
+
+scene.view_settings.view_transform = 'Filmic'
 
 names = [o.name for o in bpy.data.objects]
 print(f'SCENE BUILT OK: {len(names)} objects -> {names}')
