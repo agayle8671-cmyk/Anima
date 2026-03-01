@@ -290,47 +290,37 @@ print('Scene layout complete: 2 characters, 5 buildings, 3-point lighting, camer
     private string GenerateDemoAnimationScript(int fps)
     {
         var totalFrames = fps * 3; // 3 seconds
-        return $@"import bpy
-import math
-
-scene = bpy.context.scene
-scene.frame_start = 1
-scene.frame_end = {totalFrames}
-
-# Animate camera — slow dolly in
-cam = bpy.data.objects.get('Camera')
-if cam:
-    scene.frame_set(1)
-    cam.location = (0, -8, 2.5)
-    cam.keyframe_insert(data_path='location', frame=1)
-    
-    scene.frame_set({totalFrames})
-    cam.location = (0, -4, 2.0)
-    cam.keyframe_insert(data_path='location', frame={totalFrames})
-    
-    # Make it smooth
-    if cam.animation_data and cam.animation_data.action:
-        for fc in cam.animation_data.action.fcurves:
-            for kp in fc.keyframe_points:
-                kp.interpolation = 'BEZIER'
-
-# Subtle character animation
-akira = bpy.data.objects.get('Character_Akira')
-if akira:
-    scene.frame_set(1)
-    akira.rotation_euler = (0, 0, 0)
-    akira.keyframe_insert(data_path='rotation_euler', frame=1)
-    
-    scene.frame_set({totalFrames // 2})
-    akira.rotation_euler = (0, 0, math.radians(-15))
-    akira.keyframe_insert(data_path='rotation_euler', frame={totalFrames // 2})
-    
-    scene.frame_set({totalFrames})
-    akira.rotation_euler = (0, 0, math.radians(5))
-    akira.keyframe_insert(data_path='rotation_euler', frame={totalFrames})
-
-print(f'Animation complete: {{scene.frame_end - scene.frame_start + 1}} frames @ {fps}fps')
-";
+        var halfFrames = totalFrames / 2;
+        return "import bpy\nimport math\n\n" +
+               "scene = bpy.context.scene\n" +
+               "scene.frame_start = 1\n" +
+               $"scene.frame_end = {totalFrames}\n\n" +
+               "# Animate camera — slow dolly in\n" +
+               "cam = bpy.data.objects.get('Camera')\n" +
+               "if cam:\n" +
+               "    scene.frame_set(1)\n" +
+               "    cam.location = (0, -8, 2.5)\n" +
+               "    cam.keyframe_insert(data_path='location', frame=1)\n\n" +
+               $"    scene.frame_set({totalFrames})\n" +
+               "    cam.location = (0, -4, 2.0)\n" +
+               $"    cam.keyframe_insert(data_path='location', frame={totalFrames})\n\n" +
+               "    if cam.animation_data and cam.animation_data.action:\n" +
+               "        for fc in cam.animation_data.action.fcurves:\n" +
+               "            for kp in fc.keyframe_points:\n" +
+               "                kp.interpolation = 'BEZIER'\n\n" +
+               "# Subtle character animation\n" +
+               "akira = bpy.data.objects.get('Character_Akira')\n" +
+               "if akira:\n" +
+               "    scene.frame_set(1)\n" +
+               "    akira.rotation_euler = (0, 0, 0)\n" +
+               "    akira.keyframe_insert(data_path='rotation_euler', frame=1)\n\n" +
+               $"    scene.frame_set({halfFrames})\n" +
+               "    akira.rotation_euler = (0, 0, math.radians(-15))\n" +
+               $"    akira.keyframe_insert(data_path='rotation_euler', frame={halfFrames})\n\n" +
+               $"    scene.frame_set({totalFrames})\n" +
+               "    akira.rotation_euler = (0, 0, math.radians(5))\n" +
+               $"    akira.keyframe_insert(data_path='rotation_euler', frame={totalFrames})\n\n" +
+               $"print('Animation complete: {totalFrames} frames @ {fps}fps')\n";
     }
 
     private async void BtnLockAnimation_Click(object sender, RoutedEventArgs e)
