@@ -49,6 +49,12 @@
                     <Button Grid.Column="1" Grid.Row="1" Content="Save"
                             VerticalAlignment="Bottom" Click="BtnSaveSoraKey_Click"/>
                 </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="BtnClearKeys" Content="🗑 Clear All Stored Keys"
+                            Click="BtnClearKeys_Click"/>
+                    <TextBlock x:Name="KeyStatusText" VerticalAlignment="Center"
+                               Opacity="0.7" FontSize="13"/>
+                </StackPanel>
             </StackPanel>
 
             <!-- Blender Path -->

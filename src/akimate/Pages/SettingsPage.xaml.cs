@@ -40,7 +40,6 @@ public sealed partial class SettingsPage : Page
                         BlenderStatusInfo.IsOpen = true;
                         BlenderStatusInfo.Message = $"Found at: {exe}";
 
-                        // Store in project if available
                         if (ProjectService.Current != null)
                             ProjectService.Current.BlenderPath = exe;
                         return;
@@ -66,9 +65,8 @@ public sealed partial class SettingsPage : Page
                 cred.RetrievePassword();
                 if (cred.UserName == "runway") RunwayKeyBox.Password = cred.Password;
                 if (cred.UserName == "sora") SoraKeyBox.Password = cred.Password;
-                if (cred.UserName == "openai") 
+                if (cred.UserName == "openai")
                 {
-                    // Auto-initialize AI engine with stored OpenAI key
                     if (!App.AIEngine.IsReady && !string.IsNullOrEmpty(cred.Password))
                     {
                         App.AIEngine.InitializeCloud(cred.Password);
@@ -95,6 +93,26 @@ public sealed partial class SettingsPage : Page
         vault.Add(new PasswordCredential(VaultResource, service, key));
     }
 
+    /// <summary>
+    /// Removes ALL stored credentials for akimate from Windows Credential Manager.
+    /// </summary>
+    private void ClearAllKeys()
+    {
+        try
+        {
+            var vault = new PasswordVault();
+            var credentials = vault.FindAllByResource(VaultResource);
+            foreach (var cred in credentials)
+            {
+                vault.Remove(cred);
+            }
+        }
+        catch
+        {
+            // No credentials to clear
+        }
+    }
+
     private void InferenceMode_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (ProjectService.Current != null && InferenceModeSelector.SelectedItem is RadioButton rb)
@@ -106,19 +124,27 @@ public sealed partial class SettingsPage : Page
     private void BtnSaveRunwayKey_Click(object sender, RoutedEventArgs e)
     {
         SaveApiKey("runway", RunwayKeyBox.Password);
+        KeyStatusText.Text = "✅ Runway key saved.";
     }
 
     private void BtnSaveSoraKey_Click(object sender, RoutedEventArgs e)
     {
-        // Save as OpenAI key (Sora uses OpenAI API)
         SaveApiKey("sora", SoraKeyBox.Password);
 
-        // Also initialize the AI engine with this key for LLM tasks
         if (!string.IsNullOrEmpty(SoraKeyBox.Password))
         {
             SaveApiKey("openai", SoraKeyBox.Password);
             App.AIEngine.InitializeCloud(SoraKeyBox.Password);
+            KeyStatusText.Text = "✅ OpenAI key saved & AI engine initialized.";
         }
+    }
+
+    private void BtnClearKeys_Click(object sender, RoutedEventArgs e)
+    {
+        ClearAllKeys();
+        RunwayKeyBox.Password = "";
+        SoraKeyBox.Password = "";
+        KeyStatusText.Text = "🗑 All stored keys cleared from Credential Manager.";
     }
 
     private async void BtnBrowseBlender_Click(object sender, RoutedEventArgs e)
