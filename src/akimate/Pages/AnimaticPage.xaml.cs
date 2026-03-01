@@ -159,7 +159,18 @@ public sealed partial class AnimaticPage : Page
             await App.Blender.ExecutePythonAsync(animScript);
             AnimationStatus.Text += " ✅";
 
-            AnimationStatus.Text += "\n\n✅ Step 3/3: Scene built and animated in Blender!";
+            // Step 4: Save the scene so Phase 4 can reload it
+            AnimationStatus.Text += "\n💾 Saving scene...";
+            var sceneDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".akimate");
+            Directory.CreateDirectory(sceneDir);
+            var scenePath = Path.Combine(sceneDir, "scene.blend").Replace("\\", "/");
+            await App.Blender.ExecutePythonAsync(
+                $"import bpy\nbpy.ops.wm.save_as_mainfile(filepath=r'{scenePath}')");
+            AnimationStatus.Text += " ✅";
+
+            AnimationStatus.Text += "\n\n✅ Scene built, animated, and saved!";
             AnimationStatus.Text += "\n\n➡ Lock this phase and proceed to Phase 4 to render your final output.";
 
             BtnLockAnimation.IsEnabled = true;

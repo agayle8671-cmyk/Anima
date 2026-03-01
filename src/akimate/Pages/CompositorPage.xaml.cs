@@ -115,6 +115,18 @@ public sealed partial class CompositorPage : Page
 
             _satsuei ??= new SatsueiAgent(App.AIEngine);
 
+            // Load the scene saved from Phase 3
+            var savedScene = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                ".akimate", "scene.blend").Replace("\\", "/");
+            if (File.Exists(savedScene))
+            {
+                ExportStatus.Text = "📂 Loading scene from Phase 3...";
+                await App.Blender.ExecutePythonAsync(
+                    $"import bpy\nbpy.ops.wm.open_mainfile(filepath=r'{savedScene}')");
+                ExportStatus.Text = "✅ Scene loaded!";
+            }
+
             // Generate and apply render config
             ExportStatus.Text = "🎬 Step 1/3: Configuring render settings...";
             var resolution = project.ExportResolution;
