@@ -2,8 +2,11 @@
 akimate Blender Daemon — TCP Socket Server
 ==========================================
 This script runs inside Blender's Python environment (via --python flag).
-It opens an async TCP socket listener on localhost and waits for JSON commands
+It opens a TCP socket listener on localhost and processes JSON commands
 from the C# WinUI 3 application.
+
+CRITICAL: All bpy.ops calls MUST run on Blender's main thread.
+We use bpy.app.timers to pump commands from the network thread onto main.
 
 GPL INSULATION: Communication is strictly via TCP sockets. Zero shared memory
 or linking between C# and Python/Blender code. The C# application remains an
@@ -19,6 +22,7 @@ import traceback
 import os
 import sys
 import uuid
+import queue
 from datetime import datetime
 
 
@@ -27,6 +31,9 @@ HOST = "127.0.0.1"
 PORT = int(os.environ.get("AKIMATE_PORT", "9700"))
 RENDER_DIR = os.environ.get("AKIMATE_RENDER_DIR", os.path.join(os.path.expanduser("~"), ".akimate", "renders"))
 os.makedirs(RENDER_DIR, exist_ok=True)
+
+# Queue for main-thread command execution
+_command_queue = queue.Queue()
 
 
 # ── Protocol: Length-prefixed JSON messages ────────────────────────────────
@@ -63,7 +70,7 @@ def _recv_exact(sock, n):
     return buf
 
 
-# ── Command Handlers ──────────────────────────────────────────────────────
+# ── Command Handlers (all run on MAIN THREAD) ─────────────────────────────
 
 def handle_ping(params):
     """Health check."""
@@ -106,7 +113,6 @@ def handle_create_object(params):
     location = tuple(params.get("location", [0, 0, 0]))
     name = params.get("name", "")
 
-    # Track existing objects to find the new one
     existing = set(bpy.data.objects.keys())
 
     if obj_type == "cube":
@@ -124,7 +130,6 @@ def handle_create_object(params):
     else:
         return {"error": f"Unknown object type: {obj_type}"}
 
-    # Find the newly created object by diffing
     new_objs = set(bpy.data.objects.keys()) - existing
     if not new_objs:
         return {"error": "Object was not created"}
@@ -178,7 +183,7 @@ def handle_set_keyframe(params):
     name = params.get("name", "")
     frame = params.get("frame", bpy.context.scene.frame_current)
     data_path = params.get("data_path", "location")
-    interpolation = params.get("interpolation", "CONSTANT")  # CONSTANT = stepped
+    interpolation = params.get("interpolation", "CONSTANT")
 
     obj = bpy.data.objects.get(name)
     if obj is None:
@@ -187,31 +192,15 @@ def handle_set_keyframe(params):
     bpy.context.scene.frame_set(frame)
     obj.keyframe_insert(data_path=data_path, frame=frame)
 
-    # Set interpolation type on the fcurves (Blender 5.0 compatible)
+    # Set interpolation on fcurves
     try:
         if obj.animation_data and obj.animation_data.action:
-            action = obj.animation_data.action
-            # Try Blender 5.0 API first (action.layers -> strips -> channels)
-            if hasattr(action, 'layers'):
-                for layer in action.layers:
-                    for strip in layer.strips:
-                        if hasattr(strip, 'channelbags'):
-                            for channelbag in strip.channelbags:
-                                for fcurve in channelbag.fcurves:
-                                    if fcurve.data_path == data_path:
-                                        for kp in fcurve.keyframe_points:
-                                            if abs(kp.co[0] - frame) < 0.5:
-                                                kp.interpolation = interpolation
-            # Fallback: legacy Blender API (< 5.0)
-            elif hasattr(action, 'fcurves'):
-                for fcurve in action.fcurves:
-                    if fcurve.data_path == data_path:
-                        for kp in fcurve.keyframe_points:
-                            if abs(kp.co[0] - frame) < 0.5:
-                                kp.interpolation = interpolation
-    except Exception as e:
-        # Keyframe was inserted but interpolation couldn't be set
-        print(f"[akimate] Warning: keyframe set but interpolation failed: {e}", flush=True)
+            for fcurve in obj.animation_data.action.fcurves:
+                for kp in fcurve.keyframe_points:
+                    if kp.co[0] == frame:
+                        kp.interpolation = interpolation
+    except Exception:
+        pass  # Interpolation setting is best-effort
 
     return {
         "name": obj.name,
@@ -236,33 +225,35 @@ def handle_set_fps(params):
 
 
 def handle_set_frame_range(params):
-    """Set the start and end frame."""
-    bpy.context.scene.frame_start = params.get("start", 1)
-    bpy.context.scene.frame_end = params.get("end", 250)
-    return {
-        "frame_start": bpy.context.scene.frame_start,
-        "frame_end": bpy.context.scene.frame_end
-    }
+    """Set the scene frame range."""
+    start = params.get("start", 1)
+    end = params.get("end", 250)
+    bpy.context.scene.frame_start = start
+    bpy.context.scene.frame_end = end
+    return {"frame_start": start, "frame_end": end}
 
 
 def handle_render_frame(params):
-    """Render the current frame to an image file and return the path."""
+    """Render a single frame and save to disk."""
     frame = params.get("frame", bpy.context.scene.frame_current)
     resolution_x = params.get("resolution_x", 1920)
     resolution_y = params.get("resolution_y", 1080)
-    samples = params.get("samples", 64)
-    engine = params.get("engine", "BLENDER_EEVEE_NEXT")  # or CYCLES
+    engine = params.get("engine", "BLENDER_EEVEE_NEXT")
 
     scene = bpy.context.scene
     scene.frame_set(frame)
     scene.render.resolution_x = resolution_x
     scene.render.resolution_y = resolution_y
-    scene.render.engine = engine
+
+    # Try engine names for compatibility
+    for eng in [engine, "BLENDER_EEVEE", "EEVEE"]:
+        try:
+            scene.render.engine = eng
+            break
+        except:
+            continue
+
     scene.render.image_settings.file_format = "PNG"
-
-    if engine == "CYCLES":
-        scene.cycles.samples = samples
-
     filename = f"frame_{frame:04d}_{uuid.uuid4().hex[:8]}.png"
     filepath = os.path.join(RENDER_DIR, filename)
     scene.render.filepath = filepath
@@ -273,7 +264,7 @@ def handle_render_frame(params):
         "filepath": filepath,
         "frame": frame,
         "resolution": [resolution_x, resolution_y],
-        "engine": engine
+        "engine": scene.render.engine
     }
 
 
@@ -285,7 +276,12 @@ def handle_render_settings(params):
     if "resolution_y" in params:
         scene.render.resolution_y = params["resolution_y"]
     if "engine" in params:
-        scene.render.engine = params["engine"]
+        for eng in [params["engine"], "BLENDER_EEVEE", "EEVEE"]:
+            try:
+                scene.render.engine = eng
+                break
+            except:
+                continue
     if "fps" in params:
         scene.render.fps = params["fps"]
     if "film_transparent" in params:
@@ -340,17 +336,23 @@ def handle_new_scene(params):
 
 
 def handle_execute_python(params):
-    """Execute arbitrary Python code in Blender's context.
-    WARNING: This is powerful — use only for agent-generated Blender scripts."""
+    """Execute arbitrary Python code in Blender's context."""
     code = params.get("code", "")
     if not code:
         return {"error": "No code provided"}
 
-    result_holder = {}
-    exec_globals = {"bpy": bpy, "result": result_holder}
-    exec(code, exec_globals)
-
-    return {"executed": True, "result": result_holder.get("value", None)}
+    # Capture print output
+    import io
+    old_stdout = sys.stdout
+    sys.stdout = buffer = io.StringIO()
+    
+    try:
+        exec_globals = {"bpy": bpy, "os": os, "sys": sys, "math": __import__("math")}
+        exec(code, exec_globals)
+        output = buffer.getvalue()
+        return {"executed": True, "output": output}
+    finally:
+        sys.stdout = old_stdout
 
 
 # ── Command Router ────────────────────────────────────────────────────────
@@ -407,7 +409,8 @@ def process_command(message):
         }
 
 
-# ── Client Handler ────────────────────────────────────────────────────────
+
+# ── Client Handler (runs on background thread) ───────────────────────────
 
 def handle_client(client_sock, addr):
     """Handle a single client connection."""
@@ -418,9 +421,22 @@ def handle_client(client_sock, addr):
             if message is None:
                 break
 
-            # Process command on Blender's main thread via timer
-            response = process_command(message)
-            send_message(client_sock, response)
+            # Queue the command for main thread execution
+            result_event = threading.Event()
+            result_holder = {}
+            _command_queue.put((message, result_event, result_holder))
+            
+            # Wait for the main thread to process it (up to 120s for renders)
+            result_event.wait(timeout=120)
+            
+            if "response" in result_holder:
+                send_message(client_sock, result_holder["response"])
+            else:
+                send_message(client_sock, {
+                    "request_id": message.get("request_id", ""),
+                    "status": "error",
+                    "error": "Command timed out waiting for main thread"
+                })
 
     except (ConnectionResetError, BrokenPipeError):
         pass
@@ -432,7 +448,7 @@ def handle_client(client_sock, addr):
         print(f"[akimate] Client disconnected: {addr}", flush=True)
 
 
-# ── Server ────────────────────────────────────────────────────────────────
+# ── Server (runs on background thread) ────────────────────────────────────
 
 def start_server():
     """Start the TCP socket server in a background thread."""
@@ -444,7 +460,7 @@ def start_server():
     print(f"[akimate] Blender version: {bpy.app.version_string}", flush=True)
     print(f"[akimate] Render output: {RENDER_DIR}", flush=True)
 
-    # Signal that we're ready (write a marker file)
+    # Signal that we're ready
     ready_path = os.environ.get("AKIMATE_READY_FILE", "")
     if ready_path:
         with open(ready_path, "w") as f:
@@ -465,8 +481,31 @@ def start_server():
 
 # ── Entry Point ───────────────────────────────────────────────────────
 
+import time
+
 if __name__ == "__main__" or True:  # Always run when loaded by Blender
-    print("[akimate] Daemon initialized — starting server on main thread.", flush=True)
-    # Run server on the MAIN thread to keep Blender alive in --background mode.
-    # Client connections are handled in daemon threads (see handle_client).
-    start_server()
+    print("[akimate] Daemon initialized.", flush=True)
+    
+    # Start the TCP server on a background thread (network I/O)
+    server_thread = threading.Thread(target=start_server, daemon=True)
+    server_thread.start()
+    
+    print("[akimate] Server started. Main thread pumping commands for bpy.ops.", flush=True)
+    
+    # Block the main thread with a command pump loop.
+    # This keeps Blender alive in --background mode AND ensures all
+    # bpy.ops calls run on the main thread where they work correctly.
+    while True:
+        while not _command_queue.empty():
+            try:
+                message, result_event, result_holder = _command_queue.get_nowait()
+                response = process_command(message)
+                result_holder["response"] = response
+                result_event.set()
+            except queue.Empty:
+                break
+            except Exception as e:
+                print(f"[akimate] Command pump error: {e}", flush=True)
+                traceback.print_exc()
+        time.sleep(0.01)  # 10ms pump interval
+

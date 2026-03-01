@@ -17,7 +17,6 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
-; Professional "WOW" branding
 WizardStyle=modern
 WizardSmallImageFile={#MyLogo}
 OutputDir=c:\Users\Kaafl\OneDrive\Desktop\AI Anime Studio\akimate\publish\installer
@@ -36,7 +35,6 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "{#MyPublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyPublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -44,3 +42,12 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+; Clean up stored API keys from Windows Credential Manager on uninstall
+Filename: "powershell.exe"; Parameters: "-NoProfile -Command ""try {{ $vault = New-Object Windows.Security.Credentials.PasswordVault; $creds = $vault.FindAllByResource('akimate'); foreach ($c in $creds) {{ $vault.Remove($c) }} }} catch {{}}"""; Flags: runhidden
+
+[UninstallDelete]
+; Remove user data directory
+Type: filesandordirs; Name: "{userappdata}\akimate"
+Type: filesandordirs; Name: "{localappdata}\akimate"
