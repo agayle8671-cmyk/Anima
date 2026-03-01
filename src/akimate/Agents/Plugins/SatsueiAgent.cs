@@ -85,7 +85,7 @@ Output ONLY Python code.";
     public Task<string> GenerateRenderConfigScriptAsync(
         string resolution = "1080p",
         string format = "MP4",
-        string engine = "BLENDER_EEVEE_NEXT",
+        string engine = "BLENDER_EEVEE",
         int fps = 24,
         CancellationToken ct = default)
     {
@@ -102,8 +102,14 @@ Output ONLY Python code.";
 
 scene = bpy.context.scene
 
-# Render engine
-scene.render.engine = '{engine}'
+# Render engine — try EEVEE Next (Blender 4.x+), fall back to EEVEE
+try:
+    scene.render.engine = 'BLENDER_EEVEE_NEXT'
+except:
+    try:
+        scene.render.engine = 'BLENDER_EEVEE'
+    except:
+        scene.render.engine = 'EEVEE'
 
 # Resolution
 scene.render.resolution_x = {resX}
@@ -122,14 +128,17 @@ scene.render.ffmpeg.audio_codec = 'AAC'
 
 # Color management (anime-friendly)
 scene.view_settings.view_transform = 'Standard'
-scene.view_settings.look = 'None'
+try:
+    scene.view_settings.look = 'None'
+except:
+    pass
 
 # Performance
-if scene.render.engine == 'BLENDER_EEVEE_NEXT':
-    scene.eevee.taa_render_samples = 64
-elif scene.render.engine == 'CYCLES':
-    scene.cycles.samples = 128
-    scene.cycles.use_denoising = True
+try:
+    if hasattr(scene, 'eevee'):
+        scene.eevee.taa_render_samples = 64
+except:
+    pass
 
 print(f'Render configured: {{scene.render.resolution_x}}x{{scene.render.resolution_y}} @ {{scene.render.fps}}fps, {{scene.render.engine}}')
 ";
@@ -137,9 +146,30 @@ print(f'Render configured: {{scene.render.resolution_x}}x{{scene.render.resoluti
     }
 
     /// <summary>
-    /// Generate a script to export the final render.
+    /// Generate a script to render a single frame as a preview/proof.
+    /// This is fast and won't time out the TCP connection.
     /// </summary>
-    public string GenerateExportScript(string outputPath, int frameStart = 1, int frameEnd = 250)
+    public string GenerateExportScript(string outputPath, int frameStart = 1, int frameEnd = 1)
+    {
+        return $@"import bpy
+
+scene = bpy.context.scene
+scene.frame_start = {frameStart}
+scene.frame_end = {frameEnd}
+scene.frame_current = {frameStart}
+scene.render.filepath = r'{outputPath}'
+
+# Render single frame (fast proof-of-concept)
+bpy.ops.render.render(write_still=True)
+print(f'Render complete: {{scene.render.filepath}}')
+";
+    }
+
+    /// <summary>
+    /// Generate a script to render a full animation to a video file.
+    /// This should NOT be run via TCP (too slow) — save to file and run manually.
+    /// </summary>
+    public string GenerateFullAnimationExportScript(string outputPath, int frameStart = 1, int frameEnd = 250)
     {
         return $@"import bpy
 
@@ -148,9 +178,9 @@ scene.frame_start = {frameStart}
 scene.frame_end = {frameEnd}
 scene.render.filepath = r'{outputPath}'
 
-# Render animation
+# Render full animation
 bpy.ops.render.render(animation=True)
-print(f'Render complete: {{scene.render.filepath}}')
+print(f'Animation render complete: {{scene.render.filepath}}')
 ";
     }
 }
