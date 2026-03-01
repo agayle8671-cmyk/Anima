@@ -1,0 +1,26 @@
+## Build outputs
+bin/
+obj/
+
+## IDE
+.vs/
+*.user
+*.suo
+
+## OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+## NuGet
+packages/
+
+## Rider
+.idea/
+
+## Models (downloaded at runtime)
+models/
+
+## Temp
+*.tmp
+*.log
