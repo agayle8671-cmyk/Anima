@@ -316,45 +316,65 @@ print(f'Engine: {scene.render.engine}')
                 ExportStatus.Text += "\n⚠ Warning: Scene may not have built correctly.";
             }
 
-            // Step 4: Render full MP4 video animation
-            ExportStatus.Text += "\n\n🎬 Step 2/3: Rendering MP4 video...\n   (This takes several minutes — Cycles is working)";
-
+            // Step 4: Render PNG sequence (Blender 5 removed FFMPEG from image_settings enum)
             var outputDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 ".akimate", "exports");
-            Directory.CreateDirectory(outputDir);
             var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            var outputPath = Path.Combine(outputDir, $"{project.Name}_{timestamp}.mp4").Replace("\\", "/");
+            var framesDir = Path.Combine(outputDir, $"frames_{timestamp}").Replace("\\", "/");
+            var outputMp4 = Path.Combine(outputDir, $"{project.Name}_{timestamp}.mp4").Replace("\\", "/");
+            Directory.CreateDirectory(framesDir);
 
-            // Use string concatenation to avoid C# interpolation conflicts with Python quotes
+            ExportStatus.Text += "\n\n🎬 Step 2/3: Rendering frames...\n   (120 frames @ 24fps — takes several minutes)";
+
             var renderScript =
-                "import bpy\n" +
+                "import bpy, os, subprocess, sys\n" +
                 "scene = bpy.context.scene\n" +
-                "\n" +
-                "# Set animation range: 5 seconds at 24fps = 120 frames\n" +
                 "scene.frame_start = 1\n" +
                 "scene.frame_end = 120\n" +
                 "scene.render.fps = 24\n" +
-                "\n" +
-                "# Lower samples for faster render (still looks good)\n" +
                 "scene.cycles.samples = 16\n" +
-                "\n" +
-                "# Set output to MP4 via Blender's built-in FFmpeg\n" +
-                $"scene.render.filepath = r'{outputPath}'\n" +
-                "scene.render.image_settings.file_format = 'FFMPEG'\n" +
-                "scene.render.ffmpeg.format = 'MPEG4'\n" +
-                "scene.render.ffmpeg.codec = 'H264'\n" +
-                "scene.render.ffmpeg.constant_rate_factor = 'MEDIUM'\n" +
-                "scene.render.ffmpeg.ffmpeg_preset = 'GOOD'\n" +
-                "\n" +
-                "print(f'Starting MP4 render: {scene.frame_start}-{scene.frame_end} frames -> " + outputPath + "')\n" +
-                "\n" +
-                "# Render full animation - works in headless/background mode\n" +
+                "scene.render.image_settings.file_format = 'PNG'\n" +
+                $"frames_dir = r'{framesDir}'\n" +
+                "os.makedirs(frames_dir, exist_ok=True)\n" +
+                "scene.render.filepath = frames_dir + '/frame_'\n" +
+                "print(f'Rendering {scene.frame_end} frames to: ' + frames_dir)\n" +
                 "bpy.ops.render.render(animation=True, write_still=False)\n" +
-                "print('MP4 RENDER COMPLETE')\n";
+                "print('PNG SEQUENCE DONE')\n" +
+                "\n" +
+                "# Find Blender's bundled ffmpeg or system ffmpeg\n" +
+                "import glob\n" +
+                "blender_exe = sys.argv[0]\n" +
+                "blender_dir = os.path.dirname(blender_exe)\n" +
+                "ffmpeg_candidates = [\n" +
+                "    os.path.join(blender_dir, 'ffmpeg.exe'),\n" +
+                "    os.path.join(blender_dir, 'ffmpeg'),\n" +
+                "    'ffmpeg',\n" +
+                "]\n" +
+                "ffmpeg = None\n" +
+                "for f in ffmpeg_candidates:\n" +
+                "    try:\n" +
+                "        r = subprocess.run([f, '-version'], capture_output=True, timeout=5)\n" +
+                "        if r.returncode == 0:\n" +
+                "            ffmpeg = f\n" +
+                "            break\n" +
+                "    except:\n" +
+                "        continue\n" +
+                "\n" +
+                $"output_mp4 = r'{outputMp4}'\n" +
+                "if ffmpeg:\n" +
+                "    frame_pattern = frames_dir + '/frame_%04d.png'\n" +
+                "    cmd = [ffmpeg, '-y', '-framerate', '24', '-i', frame_pattern,\n" +
+                "           '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '23', output_mp4]\n" +
+                "    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)\n" +
+                "    if result.returncode == 0:\n" +
+                "        print(f'VIDEO ENCODED: {output_mp4}')\n" +
+                "    else:\n" +
+                "        print(f'FFMPEG_ERROR: {result.stderr[:500]}')\n" +
+                "else:\n" +
+                "    print(f'FFMPEG_NOT_FOUND: frames at {frames_dir}')\n";
 
-            // Use a long timeout — 120 frames at ~5s each = up to 10 minutes
-            using var longCts = new System.Threading.CancellationTokenSource(TimeSpan.FromMinutes(20));
+            using var longCts = new System.Threading.CancellationTokenSource(TimeSpan.FromMinutes(30));
             var renderResult = await App.Blender.ExecutePythonAsync(renderScript, longCts.Token);
             var renderStatus = renderResult.GetProperty("status").GetString();
             if (renderStatus == "error")
@@ -363,28 +383,41 @@ print(f'Engine: {scene.render.engine}')
                 ExportStatus.Text += $"\n\n❌ Render error:\n{err}";
                 return;
             }
-            ExportStatus.Text = ExportStatus.Text.Replace("(This takes several minutes — Cycles is working)", "✅");
 
-            // Step 5: Verify MP4 exists
+            // Parse output to determine outcome
+            var output = renderResult.GetProperty("result").GetProperty("output").GetString() ?? "";
+            ExportStatus.Text = ExportStatus.Text.Replace("(120 frames @ 24fps — takes several minutes)", "✅");
             ExportStatus.Text += "\n\n✅ Step 3/3: Verifying output...";
-            if (File.Exists(outputPath))
+
+            if (output.Contains("VIDEO ENCODED"))
             {
-                var fileSize = new FileInfo(outputPath).Length;
-                ExportStatus.Text += $" ✅\n\n🎉 Export complete!\nVideo: {outputPath}\nSize: {fileSize:N0} bytes";
+                var fileSize = File.Exists(outputMp4) ? new FileInfo(outputMp4).Length : 0;
+                ExportStatus.Text += $" ✅\n\n🎉 Export complete!\nVideo: {outputMp4}\nSize: {fileSize:N0} bytes";
+            }
+            else if (output.Contains("FFMPEG_NOT_FOUND"))
+            {
+                ExportStatus.Text += $" ⚠\n\nFrames rendered! FFmpeg not found for MP4 encoding.\nPNG frames are at:\n{framesDir}\n\nInstall FFmpeg or use a video editor to encode them.";
+            }
+            else if (output.Contains("FFMPEG_ERROR"))
+            {
+                ExportStatus.Text += $" ⚠\n\nFrames rendered but FFmpeg encoding failed.\nPNG frames at: {framesDir}";
             }
             else
             {
-                // Blender may append frame numbers — check for any mp4 in dir
-                var mp4Files = Directory.GetFiles(outputDir, "*.mp4");
-                if (mp4Files.Length > 0)
+                // Check manually
+                if (File.Exists(outputMp4))
                 {
-                    var latest = mp4Files.OrderByDescending(f => File.GetLastWriteTime(f)).First();
-                    var fileSize = new FileInfo(latest).Length;
-                    ExportStatus.Text += $" ✅\n\n🎉 Export complete!\nVideo: {latest}\nSize: {fileSize:N0} bytes";
+                    var fileSize = new FileInfo(outputMp4).Length;
+                    ExportStatus.Text += $" ✅\n\n🎉 Export complete!\nVideo: {outputMp4}\nSize: {fileSize:N0} bytes";
+                }
+                else if (Directory.Exists(framesDir) && Directory.GetFiles(framesDir, "*.png").Length > 0)
+                {
+                    var frameCount = Directory.GetFiles(framesDir, "*.png").Length;
+                    ExportStatus.Text += $" ✅\n\n🎬 {frameCount} frames rendered!\nFrames: {framesDir}\n\nEncode to MP4: ffmpeg -framerate 24 -i frame_%04d.png output.mp4";
                 }
                 else
                 {
-                    ExportStatus.Text += $"\n\n⚠ Render finished but MP4 not found at:\n{outputPath}";
+                    ExportStatus.Text += $" ⚠\nOutput: {output}";
                 }
             }
 
