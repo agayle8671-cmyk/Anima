@@ -20,6 +20,12 @@ public partial class App : Application
 
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        // Auto-create a default project so the user can start immediately
+        if (ProjectService.Current == null)
+        {
+            ProjectService.Current = ProjectService.CreateNew("Untitled Project");
+        }
+
         MainWindow = new MainWindow();
         MainWindow.Activate();
     }
