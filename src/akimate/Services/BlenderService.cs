@@ -94,13 +94,15 @@ public sealed class BlenderService : IDisposable
             CreateNoWindow = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            Environment =
-            {
-                ["AKIMATE_PORT"] = Port.ToString(),
-                ["AKIMATE_RENDER_DIR"] = _renderDir,
-                ["AKIMATE_READY_FILE"] = _readyFilePath
-            }
+            // IMPORTANT: Do NOT use the Environment initializer — it replaces the
+            // entire environment, stripping PATH and system vars Blender needs.
+            // Use EnvironmentVariables to ADD vars on top of the inherited env.
         };
+
+        // Add our vars to the inherited environment
+        startInfo.EnvironmentVariables["AKIMATE_PORT"] = Port.ToString();
+        startInfo.EnvironmentVariables["AKIMATE_RENDER_DIR"] = _renderDir;
+        startInfo.EnvironmentVariables["AKIMATE_READY_FILE"] = _readyFilePath;
 
         _blenderProcess = Process.Start(startInfo);
         if (_blenderProcess == null)
