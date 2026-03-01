@@ -4,32 +4,26 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="40,32,40,40">
-        <StackPanel Spacing="24" MaxWidth="900" HorizontalAlignment="Left">
+    <Grid>
+        <!-- Gate Overlay -->
+        <StackPanel x:Name="GateOverlay" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+            <FontIcon Glyph="&#xE72E;" FontSize="48" Opacity="0.4"/>
+            <TextBlock Text="Phase Locked" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <TextBlock Text="Complete Phase 2 (Pre-Production) first." Opacity="0.6" HorizontalAlignment="Center"/>
+        </StackPanel>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Phase 3: Animatic &amp; Genga" FontSize="32" FontWeight="Bold"/>
-                <TextBlock Text="Timing, voice synthesis, keyframe generation, and animation. The Animation Agent applies stepped curves and sakuga techniques to 3D rigs."
-                           FontSize="14" Opacity="0.7" TextWrapping="Wrap"/>
-            </StackPanel>
+        <!-- Content -->
+        <ScrollViewer x:Name="ContentPanel" VerticalScrollBarVisibility="Auto" Padding="40,32,40,40" Visibility="Collapsed">
+            <StackPanel Spacing="24" MaxWidth="900" HorizontalAlignment="Left">
 
-            <InfoBar x:Name="GateInfo" IsOpen="True" IsClosable="False"
-                     Severity="Warning"
-                     Title="Phase Locked"
-                     Message="Complete Phase 2 (Pre-Production) to unlock this phase."/>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Phase 3: Animatic &amp; Genga" FontSize="32" FontWeight="Bold"/>
+                    <TextBlock Text="Timing, keyframe generation, and animation. The Animation Agent applies stepped curves and sakuga techniques."
+                               FontSize="14" Opacity="0.7" TextWrapping="Wrap"/>
+                </StackPanel>
 
-            <!-- Voice Synthesis -->
-            <StackPanel x:Name="VoiceSection" Spacing="12" Visibility="Collapsed">
-                <TextBlock Text="Voice Synthesis (Kokoro TTS)" FontSize="18" FontWeight="SemiBold"/>
-                <TextBlock Text="Generate character dialogue audio from your script using the Kokoro engine. Each character can have a distinct voice profile."
-                           FontSize="13" Opacity="0.6" TextWrapping="Wrap"/>
-                <Button Content="Generate Dialogue Audio" Click="BtnGenerateVoice_Click"/>
-            </StackPanel>
-
-            <!-- Animation Controls -->
-            <StackPanel x:Name="AnimationSection" Spacing="12" Visibility="Collapsed">
+                <!-- Animation Parameters -->
                 <TextBlock Text="Animation Parameters" FontSize="18" FontWeight="SemiBold"/>
-
                 <Grid ColumnSpacing="16" RowSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -42,51 +36,45 @@
 
                     <StackPanel Grid.Column="0" Grid.Row="0" Spacing="6">
                         <TextBlock Text="Frame Rate" FontSize="14" FontWeight="SemiBold"/>
-                        <ComboBox x:Name="FrameRateSelector" HorizontalAlignment="Stretch"
-                                  SelectedIndex="1">
-                            <ComboBoxItem Content="On Ones (24 fps — Full Animation)"/>
-                            <ComboBoxItem Content="On Twos (12 fps — Standard Anime)"/>
-                            <ComboBoxItem Content="On Threes (8 fps — Limited Anime)"/>
+                        <ComboBox x:Name="FrameRateSelector" HorizontalAlignment="Stretch" SelectedIndex="1">
+                            <ComboBoxItem Content="On Ones (24 fps)" Tag="24"/>
+                            <ComboBoxItem Content="On Twos (12 fps — Standard)" Tag="12"/>
+                            <ComboBoxItem Content="On Threes (8 fps)" Tag="8"/>
                         </ComboBox>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Grid.Row="0" Spacing="6">
-                        <TextBlock Text="Interpolation" FontSize="14" FontWeight="SemiBold"/>
-                        <ComboBox x:Name="InterpolationSelector" HorizontalAlignment="Stretch"
-                                  SelectedIndex="0">
-                            <ComboBoxItem Content="Stepped (Sakuga — Pose-Driven)"/>
-                            <ComboBoxItem Content="Smooth Spline (Standard CG)"/>
-                        </ComboBox>
+                        <TextBlock Text="Full Animation" FontSize="14" FontWeight="SemiBold"/>
+                        <ToggleSwitch x:Name="InterpolationToggle" IsOn="False"
+                                      OnContent="On Ones (Sakuga)" OffContent="Stepped (Standard)"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="0" Grid.Row="1" Spacing="6">
-                        <TextBlock Text="Impact Frames" FontSize="14" FontWeight="SemiBold"/>
-                        <ToggleSwitch x:Name="ImpactFrameToggle" IsOn="True"
-                                      OnContent="Enabled" OffContent="Disabled"/>
+                        <TextBlock Text="Impact Frames" FontSize="14"/>
+                        <ToggleSwitch IsOn="True" OnContent="Enabled" OffContent="Disabled"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Grid.Row="1" Spacing="6">
-                        <TextBlock Text="Smear Frames" FontSize="14" FontWeight="SemiBold"/>
-                        <ToggleSwitch x:Name="SmearToggle" IsOn="True"
-                                      OnContent="Enabled" OffContent="Disabled"/>
+                        <TextBlock Text="Smear Frames" FontSize="14"/>
+                        <ToggleSwitch IsOn="True" OnContent="Enabled" OffContent="Disabled"/>
                     </StackPanel>
                 </Grid>
 
-                <!-- Timeline placeholder -->
-                <TextBlock Text="Timeline" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,0"/>
-                <Grid Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                      CornerRadius="8" Padding="40" MinHeight="150"
-                      BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-                    <TextBlock Text="Animation timeline will appear here"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               Opacity="0.4" FontSize="14"/>
-                </Grid>
+                <!-- Generate -->
+                <Button x:Name="BtnGenerateAnimation" Content="🎬 Generate Animation"
+                        Style="{StaticResource AccentButtonStyle}"
+                        Click="BtnGenerateAnimation_Click"/>
+                <TextBox x:Name="AnimationStatus" IsReadOnly="True" AcceptsReturn="True"
+                         MinHeight="150" TextWrapping="Wrap" PlaceholderText="Animation script output appears here"/>
+
+                <!-- Lock Phase -->
+                <InfoBar x:Name="PhaseInfoBar" IsOpen="False" IsClosable="True"
+                         Severity="Success" Title="Animation Complete"
+                         Message="Proceed to Phase 4: Satsuei (Compositing)."/>
+                <Button x:Name="BtnLockAnimation" Content="🔒 Lock Animation &amp; Proceed →"
+                        Click="BtnLockAnimation_Click"/>
+
             </StackPanel>
-
-            <Button x:Name="BtnProceedToCompositor" Content="Lock Animation &amp; Proceed →"
-                    Click="BtnProceedToCompositor_Click" Visibility="Collapsed"/>
-
-        </StackPanel>
-    </ScrollViewer>
-
+        </ScrollViewer>
+    </Grid>
 </Page>

@@ -4,64 +4,49 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="40,32,40,40">
-        <StackPanel Spacing="24" MaxWidth="900" HorizontalAlignment="Left">
+    <Grid>
+        <!-- Gate Overlay -->
+        <StackPanel x:Name="GateOverlay" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+            <FontIcon Glyph="&#xE72E;" FontSize="48" Opacity="0.4"/>
+            <TextBlock Text="Phase Locked" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <TextBlock Text="Complete Phase 1 (Conceptualization) first." Opacity="0.6" HorizontalAlignment="Center"/>
+        </StackPanel>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Phase 2: Pre-Production" FontSize="32" FontWeight="Bold"/>
-                <TextBlock Text="Storyboarding, character turnaround sheets, and 3D environmental layout. The Storyboard and Layout Agents will generate visual assets from your locked script."
-                           FontSize="14" Opacity="0.7" TextWrapping="Wrap"/>
-            </StackPanel>
+        <!-- Content -->
+        <ScrollViewer x:Name="ContentPanel" VerticalScrollBarVisibility="Auto" Padding="40,32,40,40" Visibility="Collapsed">
+            <StackPanel Spacing="24" MaxWidth="900" HorizontalAlignment="Left">
 
-            <!-- Gate Check -->
-            <InfoBar x:Name="GateInfo" IsOpen="True" IsClosable="False"
-                     Severity="Warning"
-                     Title="Phase Locked"
-                     Message="Complete Phase 1 (Conceptualization) to unlock this phase."/>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Phase 2: Pre-Production" FontSize="32" FontWeight="Bold"/>
+                    <TextBlock Text="Storyboarding, character turnaround sheets, and 3D environmental layout."
+                               FontSize="14" Opacity="0.7" TextWrapping="Wrap"/>
+                </StackPanel>
 
-            <!-- Storyboard Section -->
-            <StackPanel x:Name="StoryboardSection" Spacing="12" Visibility="Collapsed">
+                <!-- Storyboard Section -->
                 <TextBlock Text="Storyboard Generation" FontSize="18" FontWeight="SemiBold"/>
-                <TextBlock Text="The Storyboard Agent will create sequential panels from your script, maintaining character consistency and cinematic framing."
+                <TextBlock Text="The Storyboard Agent creates image generation prompts for sequential panels from your script."
                            FontSize="13" Opacity="0.6" TextWrapping="Wrap"/>
-                <Button x:Name="BtnGenerateStoryboard" Content="Generate Storyboards"
+                <Button x:Name="BtnGenerateStoryboard" Content="🎨 Generate Storyboards"
                         Style="{StaticResource AccentButtonStyle}"
                         Click="BtnGenerateStoryboard_Click"/>
-                
-                <!-- Storyboard Gallery placeholder -->
-                <Grid x:Name="StoryboardGallery" 
-                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                      CornerRadius="8" Padding="40" MinHeight="200"
-                      BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-                    <TextBlock Text="Storyboard panels will appear here" 
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               Opacity="0.4" FontSize="14"/>
-                </Grid>
-            </StackPanel>
+                <TextBox x:Name="StoryboardStatus" IsReadOnly="True" AcceptsReturn="True"
+                         MinHeight="120" TextWrapping="Wrap" PlaceholderText="Storyboard panel prompts appear here"/>
 
-            <!-- Character Design Section -->
-            <StackPanel x:Name="CharacterSection" Spacing="12" Visibility="Collapsed">
+                <!-- Character Sheets Section -->
                 <TextBlock Text="Character Turnaround Sheets" FontSize="18" FontWeight="SemiBold"/>
-                <TextBlock Text="Generate multi-angle reference sheets for each character to ensure visual consistency across all frames."
-                           FontSize="13" Opacity="0.6" TextWrapping="Wrap"/>
-                <Button x:Name="BtnGenerateCharacters" Content="Generate Character Sheets"
-                        Click="BtnGenerateCharacters_Click"/>
+                <Button x:Name="BtnGenerateCharacterSheets" Content="🎨 Generate Character Sheets"
+                        Click="BtnGenerateCharacterSheets_Click"/>
+                <TextBox x:Name="CharacterSheetStatus" IsReadOnly="True" AcceptsReturn="True"
+                         MinHeight="100" TextWrapping="Wrap" PlaceholderText="Character sheet prompts appear here"/>
 
-                <Grid x:Name="CharacterGallery"
-                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                      CornerRadius="8" Padding="40" MinHeight="200"
-                      BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
-                    <TextBlock Text="Character sheets will appear here"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"
-                               Opacity="0.4" FontSize="14"/>
-                </Grid>
+                <!-- Lock Phase -->
+                <InfoBar x:Name="PhaseInfoBar" IsOpen="False" IsClosable="True"
+                         Severity="Success" Title="Pre-Production Complete"
+                         Message="Proceed to Phase 3: Animatic &amp; Genga."/>
+                <Button x:Name="BtnLockPreProduction" Content="🔒 Lock Pre-Production &amp; Proceed →"
+                        Click="BtnLockPreProduction_Click"/>
+
             </StackPanel>
-
-            <!-- Proceed -->
-            <Button x:Name="BtnProceedToAnimatic" Content="Lock Pre-Production &amp; Proceed →"
-                    Click="BtnProceedToAnimatic_Click" Visibility="Collapsed"/>
-
-        </StackPanel>
-    </ScrollViewer>
-
+        </ScrollViewer>
+    </Grid>
 </Page>

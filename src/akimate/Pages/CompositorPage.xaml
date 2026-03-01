@@ -4,56 +4,26 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="40,32,40,40">
-        <StackPanel Spacing="24" MaxWidth="900" HorizontalAlignment="Left">
+    <Grid>
+        <!-- Gate Overlay -->
+        <StackPanel x:Name="GateOverlay" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+            <FontIcon Glyph="&#xE72E;" FontSize="48" Opacity="0.4"/>
+            <TextBlock Text="Phase Locked" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <TextBlock Text="Complete Phase 3 (Animatic &amp; Genga) first." Opacity="0.6" HorizontalAlignment="Center"/>
+        </StackPanel>
 
-            <StackPanel Spacing="4">
-                <TextBlock Text="Phase 4: Satsuei (Compositing)" FontSize="32" FontWeight="Bold"/>
-                <TextBlock Text="Multi-pass rendering, compositing, color grading, atmospheric effects, and final export. The Satsuei Agent orchestrates all render passes into a cinematic frame."
-                           FontSize="14" Opacity="0.7" TextWrapping="Wrap"/>
-            </StackPanel>
+        <!-- Content -->
+        <ScrollViewer x:Name="ContentPanel" VerticalScrollBarVisibility="Auto" Padding="40,32,40,40" Visibility="Collapsed">
+            <StackPanel Spacing="24" MaxWidth="900" HorizontalAlignment="Left">
 
-            <InfoBar x:Name="GateInfo" IsOpen="True" IsClosable="False"
-                     Severity="Warning"
-                     Title="Phase Locked"
-                     Message="Complete Phase 3 (Animatic &amp; Genga) to unlock this phase."/>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Phase 4: Satsuei (Compositing)" FontSize="32" FontWeight="Bold"/>
+                    <TextBlock Text="Multi-pass rendering, compositing, color grading, atmospheric effects, and final export."
+                               FontSize="14" Opacity="0.7" TextWrapping="Wrap"/>
+                </StackPanel>
 
-            <!-- Render Settings -->
-            <StackPanel x:Name="RenderSection" Spacing="12" Visibility="Collapsed">
-                <TextBlock Text="Render Configuration" FontSize="18" FontWeight="SemiBold"/>
-
-                <Grid ColumnSpacing="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Column="0" Spacing="6">
-                        <TextBlock Text="Resolution" FontSize="14" FontWeight="SemiBold"/>
-                        <ComboBox x:Name="ResolutionSelector" HorizontalAlignment="Stretch"
-                                  SelectedIndex="1">
-                            <ComboBoxItem Content="720p (1280×720)"/>
-                            <ComboBoxItem Content="1080p (1920×1080)"/>
-                            <ComboBoxItem Content="4K (3840×2160)"/>
-                        </ComboBox>
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="1" Spacing="6">
-                        <TextBlock Text="Export Format" FontSize="14" FontWeight="SemiBold"/>
-                        <ComboBox x:Name="FormatSelector" HorizontalAlignment="Stretch"
-                                  SelectedIndex="0">
-                            <ComboBoxItem Content="MP4 (H.264)"/>
-                            <ComboBoxItem Content="ProRes"/>
-                            <ComboBoxItem Content="PNG Sequence"/>
-                        </ComboBox>
-                    </StackPanel>
-                </Grid>
-            </StackPanel>
-
-            <!-- Compositing Controls -->
-            <StackPanel x:Name="CompositingSection" Spacing="12" Visibility="Collapsed">
+                <!-- Compositing Controls -->
                 <TextBlock Text="Compositing Effects" FontSize="18" FontWeight="SemiBold"/>
-
                 <Grid ColumnSpacing="16" RowSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -62,69 +32,48 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Column="0" Grid.Row="0" Spacing="6">
                         <TextBlock Text="Depth of Field" FontSize="14"/>
-                        <Slider x:Name="DOFSlider" Minimum="0" Maximum="100" Value="40"/>
+                        <ToggleSwitch x:Name="ToggleDOF" IsOn="True" OnContent="On" OffContent="Off"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Grid.Row="0" Spacing="6">
-                        <TextBlock Text="Fog Density" FontSize="14"/>
-                        <Slider x:Name="FogSlider" Minimum="0" Maximum="100" Value="20"/>
+                        <TextBlock Text="Volumetric Fog" FontSize="14"/>
+                        <ToggleSwitch x:Name="ToggleFog" IsOn="False" OnContent="On" OffContent="Off"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="0" Grid.Row="1" Spacing="6">
-                        <TextBlock Text="Dust Particles" FontSize="14"/>
-                        <ToggleSwitch x:Name="DustToggle" IsOn="True"
-                                      OnContent="Enabled" OffContent="Disabled"/>
+                        <TextBlock Text="Color Grading" FontSize="14"/>
+                        <ToggleSwitch x:Name="ToggleColorGrading" IsOn="True" OnContent="On" OffContent="Off"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Grid.Row="1" Spacing="6">
-                        <TextBlock Text="Volumetric Lighting" FontSize="14"/>
-                        <ToggleSwitch x:Name="VolumetricToggle" IsOn="True"
-                                      OnContent="Enabled" OffContent="Disabled"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="0" Grid.Row="2" Spacing="6">
-                        <TextBlock Text="Color Grading" FontSize="14"/>
-                        <ComboBox x:Name="ColorGradeSelector" HorizontalAlignment="Stretch"
-                                  SelectedIndex="0">
-                            <ComboBoxItem Content="Warm Sunset"/>
-                            <ComboBoxItem Content="Cool Night"/>
-                            <ComboBoxItem Content="High Contrast"/>
-                            <ComboBoxItem Content="Desaturated"/>
-                            <ComboBoxItem Content="Custom LUT"/>
-                        </ComboBox>
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="1" Grid.Row="2" Spacing="6">
-                        <TextBlock Text="Split Diopter" FontSize="14"/>
-                        <ToggleSwitch x:Name="SplitDiopterToggle" IsOn="False"
-                                      OnContent="Enabled" OffContent="Disabled"/>
+                        <TextBlock Text="Bloom / Glow" FontSize="14"/>
+                        <ToggleSwitch IsOn="True" OnContent="On" OffContent="Off"/>
                     </StackPanel>
                 </Grid>
-            </StackPanel>
 
-            <!-- Export -->
-            <StackPanel x:Name="ExportSection" Spacing="12" Visibility="Collapsed">
+                <!-- Export -->
                 <TextBlock Text="Export" FontSize="18" FontWeight="SemiBold"/>
                 <Grid ColumnSpacing="12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Button Content="Export Video (MP4)" HorizontalAlignment="Stretch"
-                            Height="48" Style="{StaticResource AccentButtonStyle}"
+                    <Button x:Name="BtnExportVideo" Content="🎬 Export Video (MP4)"
+                            HorizontalAlignment="Stretch" Height="48"
+                            Style="{StaticResource AccentButtonStyle}"
                             Click="BtnExportVideo_Click"/>
-                    <Button Grid.Column="1" Content="Export Blender Project (.blend)" 
+                    <Button x:Name="BtnExportBlend" Grid.Column="1"
+                            Content="💾 Export Blender Project (.blend)"
                             HorizontalAlignment="Stretch" Height="48"
                             Click="BtnExportBlend_Click"/>
                 </Grid>
+                <TextBlock x:Name="ExportStatus" TextWrapping="Wrap" Opacity="0.7" FontSize="13"/>
+
             </StackPanel>
-
-        </StackPanel>
-    </ScrollViewer>
-
+        </ScrollViewer>
+    </Grid>
 </Page>

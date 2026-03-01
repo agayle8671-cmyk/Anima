@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Windows.Security.Credentials;
 using System;
 using System.IO;
+using akimate.Services;
 
 namespace akimate.Pages;
 
@@ -19,7 +20,6 @@ public sealed partial class SettingsPage : Page
 
     private void DetectBlender()
     {
-        // Auto-detect common Blender install locations
         string[] searchPaths = new[]
         {
             @"C:\Program Files\Blender Foundation",
@@ -39,6 +39,10 @@ public sealed partial class SettingsPage : Page
                         BlenderPathBox.Text = exe;
                         BlenderStatusInfo.IsOpen = true;
                         BlenderStatusInfo.Message = $"Found at: {exe}";
+
+                        // Store in project if available
+                        if (ProjectService.Current != null)
+                            ProjectService.Current.BlenderPath = exe;
                         return;
                     }
                 }
@@ -62,11 +66,19 @@ public sealed partial class SettingsPage : Page
                 cred.RetrievePassword();
                 if (cred.UserName == "runway") RunwayKeyBox.Password = cred.Password;
                 if (cred.UserName == "sora") SoraKeyBox.Password = cred.Password;
+                if (cred.UserName == "openai") 
+                {
+                    // Auto-initialize AI engine with stored OpenAI key
+                    if (!App.AIEngine.IsReady && !string.IsNullOrEmpty(cred.Password))
+                    {
+                        App.AIEngine.InitializeCloud(cred.Password);
+                    }
+                }
             }
         }
         catch
         {
-            // No credentials stored yet — that's fine
+            // No credentials stored yet
         }
     }
 
@@ -79,16 +91,15 @@ public sealed partial class SettingsPage : Page
             var existing = vault.Retrieve(VaultResource, service);
             vault.Remove(existing);
         }
-        catch { /* Not found — fine */ }
+        catch { /* Not found */ }
         vault.Add(new PasswordCredential(VaultResource, service, key));
     }
 
     private void InferenceMode_Changed(object sender, SelectionChangedEventArgs e)
     {
-        // Inference mode preference stored in project if available
-        if (Services.ProjectService.Current != null && InferenceModeSelector.SelectedItem is RadioButton rb)
+        if (ProjectService.Current != null && InferenceModeSelector.SelectedItem is RadioButton rb)
         {
-            Services.ProjectService.Current.InferenceMode = rb.Tag?.ToString() ?? "local";
+            ProjectService.Current.InferenceMode = rb.Tag?.ToString() ?? "local";
         }
     }
 
@@ -99,7 +110,15 @@ public sealed partial class SettingsPage : Page
 
     private void BtnSaveSoraKey_Click(object sender, RoutedEventArgs e)
     {
+        // Save as OpenAI key (Sora uses OpenAI API)
         SaveApiKey("sora", SoraKeyBox.Password);
+
+        // Also initialize the AI engine with this key for LLM tasks
+        if (!string.IsNullOrEmpty(SoraKeyBox.Password))
+        {
+            SaveApiKey("openai", SoraKeyBox.Password);
+            App.AIEngine.InitializeCloud(SoraKeyBox.Password);
+        }
     }
 
     private async void BtnBrowseBlender_Click(object sender, RoutedEventArgs e)
@@ -119,6 +138,9 @@ public sealed partial class SettingsPage : Page
             BlenderStatusInfo.Severity = InfoBarSeverity.Success;
             BlenderStatusInfo.Title = "Blender Configured";
             BlenderStatusInfo.Message = $"Path: {file.Path}";
+
+            if (ProjectService.Current != null)
+                ProjectService.Current.BlenderPath = file.Path;
         }
     }
 }
