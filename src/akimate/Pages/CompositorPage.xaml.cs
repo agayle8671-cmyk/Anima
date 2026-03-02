@@ -325,25 +325,32 @@ print(f'Engine: {scene.render.engine}')
             var outputMp4 = Path.Combine(outputDir, $"{project.Name}_{timestamp}.mp4").Replace("\\", "/");
             Directory.CreateDirectory(framesDir);
 
-            ExportStatus.Text += "\n\n🎬 Step 2/3: Rendering frames...\n   (120 frames @ 24fps — takes several minutes)";
+            // Calculate frame count from the user's Target Runtime setting (Phase 1)
+            int fps = 24;
+            int runtimeMinutes = project.TargetRuntimeMinutes > 0 ? project.TargetRuntimeMinutes : 10;
+            int totalFrames = runtimeMinutes * 60 * fps;
+
+            ExportStatus.Text += $"\n\n🎬 Step 2/3: Rendering {runtimeMinutes}-minute video ({totalFrames} frames @ {fps}fps)...\n   ⏳ Cycles CPU rendering — this will take a while. DO NOT close the app.";
 
             var renderScript =
                 "import bpy, os, subprocess, sys\n" +
                 "scene = bpy.context.scene\n" +
-                "scene.frame_start = 1\n" +
-                "scene.frame_end = 120\n" +
-                "scene.render.fps = 24\n" +
-                "scene.cycles.samples = 16\n" +
+                $"scene.frame_start = 1\n" +
+                $"scene.frame_end = {totalFrames}\n" +
+                $"scene.render.fps = {fps}\n" +
+                "scene.cycles.samples = 4\n" +  // Minimal samples for speed
+                "scene.render.resolution_x = 960\n" +  // Half resolution for CPU speed
+                "scene.render.resolution_y = 540\n" +
+                "scene.render.resolution_percentage = 100\n" +
                 "scene.render.image_settings.file_format = 'PNG'\n" +
                 $"frames_dir = r'{framesDir}'\n" +
                 "os.makedirs(frames_dir, exist_ok=True)\n" +
                 "scene.render.filepath = frames_dir + '/frame_'\n" +
-                "print(f'Rendering {scene.frame_end} frames to: ' + frames_dir)\n" +
+                $"print(f'Rendering {totalFrames} frames ({runtimeMinutes} min) to: ' + frames_dir)\n" +
                 "bpy.ops.render.render(animation=True, write_still=False)\n" +
                 "print('PNG SEQUENCE DONE')\n" +
                 "\n" +
                 "# Find Blender's bundled ffmpeg or system ffmpeg\n" +
-                "import glob\n" +
                 "blender_exe = sys.argv[0]\n" +
                 "blender_dir = os.path.dirname(blender_exe)\n" +
                 "ffmpeg_candidates = [\n" +
@@ -364,9 +371,9 @@ print(f'Engine: {scene.render.engine}')
                 $"output_mp4 = r'{outputMp4}'\n" +
                 "if ffmpeg:\n" +
                 "    frame_pattern = frames_dir + '/frame_%04d.png'\n" +
-                "    cmd = [ffmpeg, '-y', '-framerate', '24', '-i', frame_pattern,\n" +
+                $"    cmd = [ffmpeg, '-y', '-framerate', '{fps}', '-i', frame_pattern,\n" +
                 "           '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '23', output_mp4]\n" +
-                "    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)\n" +
+                "    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)\n" +
                 "    if result.returncode == 0:\n" +
                 "        print(f'VIDEO ENCODED: {output_mp4}')\n" +
                 "    else:\n" +
@@ -386,7 +393,7 @@ print(f'Engine: {scene.render.engine}')
 
             // Parse output to determine outcome
             var output = renderResult.GetProperty("result").GetProperty("output").GetString() ?? "";
-            ExportStatus.Text = ExportStatus.Text.Replace("(120 frames @ 24fps — takes several minutes)", "✅");
+            ExportStatus.Text += " ✅ Render complete!";
             ExportStatus.Text += "\n\n✅ Step 3/3: Verifying output...";
 
             if (output.Contains("VIDEO ENCODED"))
