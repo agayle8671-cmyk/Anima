@@ -14,33 +14,64 @@ public class LayoutAgent
     private readonly AkimateAIEngine _engine;
 
     private const string SystemPrompt = @"You are a 3D layout artist for anime production using Blender.
-Your job is to generate Blender Python (bpy) scripts that create 3D scene layouts
-matching the storyboard panels. The scripts will be executed in Blender's headless mode.
+Your job is to generate Blender Python scripts that create 3D scene layouts.
 
-When generating layout scripts, include:
-1. Camera placement matching the shot type and angle from the storyboard
-2. Simple primitive geometry for environmental blocking (cubes for buildings, planes for floors, etc.)
-3. Placeholder objects for character positions (empty axes or cubes at proper scale)
-4. Basic 3-point lighting setup appropriate for the scene mood
-5. Scene frame range and FPS settings
+CRITICAL: This runs in Blender --background (headless) mode. 
+You MUST use bpy.data and bmesh APIs ONLY. DO NOT use bpy.ops for creating objects.
+bpy.ops.mesh.primitive_* and bpy.ops.object.* SILENTLY FAIL in headless mode.
 
-Output ONLY valid Python code that uses Blender's bpy module. No explanation, just code.
-The code should be self-contained and executable.
+CORRECT way to create objects:
+```
+import bpy, bmesh
+from mathutils import Vector, Euler
+import math
 
-Camera angle reference:
-- wide shot: camera far back, captures full environment
-- medium shot: waist-up framing
-- close-up: head and shoulders
-- extreme close-up: face only
-- low-angle: camera below subject, looking up (power/dominance)
-- high-angle: camera above, looking down (vulnerability)
-- dutch angle: camera tilted (tension/unease)
-- bird's-eye: directly overhead
+# Create mesh object
+mesh = bpy.data.meshes.new('MyBox_mesh')
+obj = bpy.data.objects.new('MyBox', mesh)
+bpy.context.scene.collection.objects.link(obj)
+obj.location = Vector((x, y, z))
+bm = bmesh.new()
+bmesh.ops.create_cube(bm, size=1.0)
+bm.to_mesh(mesh)
+bm.free()
 
-Always start by clearing the default scene:
-import bpy
-bpy.ops.object.select_all(action='SELECT')
-bpy.ops.object.delete()";
+# Create material with Principled BSDF (for Cycles)
+mat = bpy.data.materials.new('MyMat')
+mat.use_nodes = True
+nodes = mat.node_tree.nodes
+nodes.clear()
+bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+bsdf.inputs['Base Color'].default_value = (r, g, b, 1.0)
+out = nodes.new('ShaderNodeOutputMaterial')
+mat.node_tree.links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+mesh.materials.append(mat)
+
+# Create light
+light_data = bpy.data.lights.new('MyLight', type='SUN')
+light_data.energy = 3.0
+light_obj = bpy.data.objects.new('MyLight', light_data)
+bpy.context.scene.collection.objects.link(light_obj)
+
+# Create camera
+cam_data = bpy.data.cameras.new('MainCamera')
+cam_data.lens = 50
+cam_obj = bpy.data.objects.new('MainCamera', cam_data)
+bpy.context.scene.collection.objects.link(cam_obj)
+cam_obj.location = Vector((0, -8, 3))
+cam_obj.rotation_euler = Euler((math.radians(75), 0, 0))
+bpy.context.scene.camera = cam_obj
+```
+
+ALSO available bmesh primitives: create_cone, create_uvsphere, create_circle, create_grid
+
+Always start by removing all default objects:
+for obj in list(bpy.data.objects): bpy.data.objects.remove(obj, do_unlink=True)
+
+ONLY use bpy.ops.render.render() for rendering — that one DOES work in headless mode.
+Set render engine to CYCLES with device='CPU' (EEVEE fails headless).
+
+Output ONLY valid Python code. No explanation, just code.";
 
     public LayoutAgent(AkimateAIEngine engine)
     {

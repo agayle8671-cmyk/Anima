@@ -275,45 +275,129 @@ print(f'Engine: {scene.render.engine}')
             }
             ExportStatus.Text = "✅ Blender connected!\n";
 
-            // Step 2: Build the ENTIRE scene fresh in THIS Blender session
-            // No relying on saved files from other phases
-            ExportStatus.Text += "\n🏗 Step 1/3: Building 3D scene...";
+            // ══════════════════════════════════════════════════════
+            // STEP 2: AI AGENTS BUILD THE SCENE
+            // Chain: LayoutAgent → AnimationAgent → SatsueiAgent
+            // ══════════════════════════════════════════════════════
+            int fps = 24;
+            int runtimeMinutes = project.TargetRuntimeMinutes > 0 ? project.TargetRuntimeMinutes : 10;
+            int totalFrames = runtimeMinutes * 60 * fps;
 
-            string buildScript;
+            // --- AGENT 1: LayoutAgent — Build the 3D scene ---
+            ExportStatus.Text += "\n🏗 Agent 1/3: Layout Agent building 3D scene...";
+            string layoutScript;
             if (App.AIEngine.IsReady)
             {
-                // Use AI to generate scene from the script
                 var layout = new LayoutAgent(App.AIEngine);
                 var sceneDesc = !string.IsNullOrEmpty(project.ScriptText) && project.ScriptText.Length > 50
-                    ? project.ScriptText.Substring(0, Math.Min(500, project.ScriptText.Length))
-                    : "A dramatic anime confrontation at dawn";
-                buildScript = await layout.GenerateLayoutScriptAsync(
-                    sceneDesc, "medium shot, eye-level", "anime cityscape");
+                    ? project.ScriptText.Substring(0, Math.Min(2000, project.ScriptText.Length))
+                    : "A dramatic anime confrontation scene at dawn in a ruined cityscape with two characters facing off";
+                layoutScript = await layout.GenerateLayoutScriptAsync(
+                    sceneDesc, "medium shot, eye-level", project.Tone ?? "dramatic");
+                ExportStatus.Text += " ✅ (AI-generated)";
             }
             else
             {
-                buildScript = GetFullSceneBuildScript();
+                layoutScript = GetFullSceneBuildScript();
+                ExportStatus.Text += " ✅ (demo scene — add API key in Settings for AI)";
             }
 
-            var buildResult = await App.Blender.ExecutePythonAsync(buildScript);
-            // Check if the command returned an error
+            var buildResult = await App.Blender.ExecutePythonAsync(layoutScript);
             var buildStatus = buildResult.GetProperty("status").GetString();
             if (buildStatus == "error")
             {
                 var err = buildResult.GetProperty("error").GetString();
-                ExportStatus.Text += $" ❌\nBlender error: {err}";
-                return;
+                ExportStatus.Text += $"\n   ❌ Layout error: {err}";
+                // Fall back to demo scene
+                ExportStatus.Text += "\n   ⚡ Falling back to demo scene...";
+                buildResult = await App.Blender.ExecutePythonAsync(GetFullSceneBuildScript());
             }
-            ExportStatus.Text += " ✅";
 
-            // Step 3: Verify the scene was actually built
+            // Verify scene was built
             var sceneInfo = await App.Blender.SendCommandAsync("scene_info");
             var objectCount = sceneInfo.GetProperty("result").GetProperty("objects").GetArrayLength();
             ExportStatus.Text += $"\n   ({objectCount} objects in scene)";
 
-            if (objectCount <= 3) // Only default objects
+            // --- AGENT 2: AnimationAgent — Add keyframe animation ---
+            ExportStatus.Text += "\n\n🎬 Agent 2/3: Animation Agent adding keyframes...";
+            if (App.AIEngine.IsReady)
             {
-                ExportStatus.Text += "\n⚠ Warning: Scene may not have built correctly.";
+                try
+                {
+                    var animAgent = new AnimationAgent(App.AIEngine);
+                    // Get object names for animation
+                    var objNames = new System.Collections.Generic.List<string>();
+                    var objects = sceneInfo.GetProperty("result").GetProperty("objects");
+                    foreach (var obj in objects.EnumerateArray())
+                    {
+                        objNames.Add(obj.GetProperty("name").GetString() ?? "");
+                    }
+
+                    var animDesc = $"Animate a {runtimeMinutes}-minute anime scene. Objects in scene: {string.Join(", ", objNames)}. " +
+                        $"Total frame range: 1-{totalFrames} at {fps}fps. " +
+                        "Create camera movements (slow pans, zooms), character motion (walking, gesturing), " +
+                        "and dynamic lighting changes. Use stepped/CONSTANT interpolation for anime feel.";
+
+                    var animScript = await animAgent.GenerateAnimationScriptAsync(
+                        animDesc, string.Join(",", objNames), 1, totalFrames, "on_twos");
+                    var animResult = await App.Blender.ExecutePythonAsync(animScript);
+                    if (animResult.GetProperty("status").GetString() == "error")
+                    {
+                        var animErr = animResult.GetProperty("error").GetString();
+                        ExportStatus.Text += $"\n   ⚠ Animation warning: {animErr}";
+                    }
+                    else
+                    {
+                        ExportStatus.Text += " ✅ (AI keyframes applied)";
+                    }
+                }
+                catch (Exception animEx)
+                {
+                    ExportStatus.Text += $"\n   ⚠ Animation agent error: {animEx.Message}";
+                }
+            }
+            else
+            {
+                ExportStatus.Text += " ⏭ (skipped — no API key)";
+            }
+
+            // --- AGENT 3: SatsueiAgent — Compositing effects ---
+            ExportStatus.Text += "\n\n🎨 Agent 3/3: Satsuei Agent applying compositing...";
+            if (App.AIEngine.IsReady)
+            {
+                try
+                {
+                    var satsuei = new SatsueiAgent(App.AIEngine);
+                    var compScript = await satsuei.GenerateCompositingScriptAsync(
+                        project.Tone ?? "dramatic",
+                        enableDOF: true,
+                        enableFog: true,
+                        enableBloom: true,
+                        enableColorGrading: true);
+                    var compResult = await App.Blender.ExecutePythonAsync(compScript);
+                    if (compResult.GetProperty("status").GetString() == "error")
+                    {
+                        var compErr = compResult.GetProperty("error").GetString();
+                        ExportStatus.Text += $"\n   ⚠ Compositing warning: {compErr}";
+                    }
+                    else
+                    {
+                        ExportStatus.Text += " ✅ (compositing applied)";
+                    }
+                }
+                catch (Exception compEx)
+                {
+                    ExportStatus.Text += $"\n   ⚠ Compositing agent error: {compEx.Message}";
+                }
+            }
+            else
+            {
+                ExportStatus.Text += " ⏭ (skipped — no API key)";
+            }
+
+            if (objectCount <= 3)
+            {
+                ExportStatus.Text += "\n\n⚠ Warning: Scene may not have built correctly.";
             }
 
             // Step 4: Render PNG sequence (Blender 5 removed FFMPEG from image_settings enum)
@@ -325,12 +409,7 @@ print(f'Engine: {scene.render.engine}')
             var outputMp4 = Path.Combine(outputDir, $"{project.Name}_{timestamp}.mp4").Replace("\\", "/");
             Directory.CreateDirectory(framesDir);
 
-            // Calculate frame count from the user's Target Runtime setting (Phase 1)
-            int fps = 24;
-            int runtimeMinutes = project.TargetRuntimeMinutes > 0 ? project.TargetRuntimeMinutes : 10;
-            int totalFrames = runtimeMinutes * 60 * fps;
-
-            ExportStatus.Text += $"\n\n🎬 Step 2/3: Rendering {runtimeMinutes}-minute video ({totalFrames} frames @ {fps}fps)...\n   ⏳ Cycles CPU rendering — this will take a while. DO NOT close the app.";
+            ExportStatus.Text += $"\n\n🎞 Rendering {runtimeMinutes}-minute video ({totalFrames} frames @ {fps}fps)...\n   ⏳ DO NOT close the app — rendering in progress.";
 
             var renderScript =
                 "import bpy, os, subprocess, sys\n" +
