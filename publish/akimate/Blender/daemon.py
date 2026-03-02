@@ -341,18 +341,34 @@ def handle_execute_python(params):
     if not code:
         return {"error": "No code provided"}
 
-    # Capture print output
+    # Capture both stdout AND stderr
     import io
     old_stdout = sys.stdout
-    sys.stdout = buffer = io.StringIO()
+    old_stderr = sys.stderr
+    sys.stdout = out_buffer = io.StringIO()
+    sys.stderr = err_buffer = io.StringIO()
     
     try:
-        exec_globals = {"bpy": bpy, "os": os, "sys": sys, "math": __import__("math")}
+        # CRITICAL: Include __builtins__ so that 'import bmesh',
+        # 'from mathutils import Vector', 'import subprocess', etc.
+        # all work correctly inside exec().
+        exec_globals = {
+            "__builtins__": __builtins__,
+            "bpy": bpy,
+            "os": os,
+            "sys": sys,
+            "math": __import__("math"),
+        }
         exec(code, exec_globals)
-        output = buffer.getvalue()
-        return {"executed": True, "output": output}
+        output = out_buffer.getvalue()
+        errors = err_buffer.getvalue()
+        result = {"executed": True, "output": output}
+        if errors:
+            result["stderr"] = errors
+        return result
     finally:
         sys.stdout = old_stdout
+        sys.stderr = old_stderr
 
 
 # ── Command Router ────────────────────────────────────────────────────────
@@ -426,8 +442,9 @@ def handle_client(client_sock, addr):
             result_holder = {}
             _command_queue.put((message, result_event, result_holder))
             
-            # Wait for the main thread to process it (up to 120s for renders)
-            result_event.wait(timeout=120)
+            # Wait for the main thread to process it
+            # Animation renders can take 30+ minutes — use 1 hour timeout
+            result_event.wait(timeout=3600)
             
             if "response" in result_holder:
                 send_message(client_sock, result_holder["response"])
